@@ -257,7 +257,7 @@ export const EstoqueScreen: React.FC = () => {
           </div>
 
           {/* Table Rows */}
-          <div className="flex-1 overflow-y-auto divide-y divide-slate-800/50 p-1">
+          <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-slate-800/50 p-1">
             {filteredProducts.length === 0 ? (
               <div className="h-full flex items-center justify-center text-slate-500 text-xs p-6 text-center">
                 Nenhum produto encontrado com os filtros atuais.
@@ -434,7 +434,7 @@ export const EstoqueScreen: React.FC = () => {
               </span>
             </div>
 
-            <div className="flex-1 overflow-y-auto divide-y divide-slate-800/60 pr-1 mt-1">
+            <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-slate-800/60 pr-1 mt-1">
               {stockMovements.length === 0 ? (
                 <div className="h-40 flex flex-col items-center justify-center text-center text-slate-500 text-xs">
                   <Boxes className="w-8 h-8 text-slate-600 mb-2" />
