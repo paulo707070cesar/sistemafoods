@@ -1,6 +1,5 @@
 name: Deploy para Hostinger via GitHub
 
-# Dispara a cada push na branch principal (main ou master)
 on:
   push:
     branches:
@@ -24,14 +23,18 @@ jobs:
       - name: 📦 Instalar Dependências
         run: npm ci --legacy-peer-deps || npm install --legacy-peer-deps
 
-      - name: 🔨 Compilar Versão de Produção (Build)
+      - name: 🔨 Compilar Versão de Produção
         run: npm run build
 
-      - name: 🚀 Publicar na Hostinger via FTP 
-        env:
-          HOSTINGER_FTP_SERVER: ${{ secrets.HOSTINGER_FTP_SERVER }}
-          HOSTINGER_FTP_USERNAME: ${{ secrets.HOSTINGER_FTP_USERNAME }}
-          HOSTINGER_FTP_PASSWORD: ${{ secrets.HOSTINGER_FTP_PASSWORD }}
+      - name: 📦 Disponibilizar build para download
+        uses: actions/upload-artifact@v4
+        with:
+          name: sistemafoods-dist
+          path: dist/
+          retention-days: 7
+
+      - name: 🚀 Publicar na Hostinger via FTP
+        if: ${{ secrets.HOSTINGER_FTP_SERVER != '' }}
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ${{ secrets.HOSTINGER_FTP_SERVER }}
