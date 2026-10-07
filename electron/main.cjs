@@ -109,20 +109,26 @@ function createWindow() {
   });
 }
 
-// When Electron has finished initialization
-app.whenReady().then(() => {
-  createWindow();
+// Safely verify if running inside Electron runtime (prevents crash when invoked in standard Node web servers)
+if (!app || typeof app.whenReady !== 'function') {
+  console.log('Sistema Food: Executando em ambiente Web Node.js. Inicialização da janela Desktop ignorada.');
+} else {
+  // When Electron has finished initialization
+  app.whenReady().then(() => {
+    createWindow();
 
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) {
+        createWindow();
+      }
+    });
+  });
+
+  // Quit when all windows are closed, except on macOS
+  app.on('window-all-closed', () => {
+    if (process.platform !== 'darwin') {
+      app.quit();
     }
   });
-});
+}
 
-// Quit when all windows are closed, except on macOS
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit();
-  }
-});

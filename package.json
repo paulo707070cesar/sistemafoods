@@ -2,13 +2,14 @@
   "name": "sistema-food-bar-restaurante",
   "private": true,
   "version": "2.5.0",
-  "main": "electron/main.cjs",
+  "main": "server.js",
   "type": "module",
   "scripts": {
+    "start": "node server.js",
     "dev": "vite --port=3000 --host=0.0.0.0",
     "build": "vite build",
     "preview": "vite preview",
-    "clean": "rm -rf dist server.js dist-electron",
+    "clean": "rm -rf dist dist-electron",
     "lint": "tsc --noEmit",
     "electron:dev": "electron electron/main.cjs",
     "electron:build": "vite build && electron-builder",
@@ -17,6 +18,9 @@
     "hostinger:build": "vite build"
   },
   "build": {
+    "extraMetadata": {
+      "main": "electron/main.cjs"
+    },
     "appId": "com.sistemafood.restaurant",
     "productName": "Sistema Food - Bar & Restaurante",
     "directories": {
