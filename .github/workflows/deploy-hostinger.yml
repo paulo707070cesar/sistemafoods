@@ -27,8 +27,7 @@ jobs:
       - name: 🔨 Compilar Versão de Produção (Build)
         run: npm run build
 
-      - name: 🚀 Publicar na Hostinger via FTP
-        if: env.HOSTINGER_FTP_SERVER != ''
+      - name: 🚀 Publicar na Hostinger via FTP 
         env:
           HOSTINGER_FTP_SERVER: ${{ secrets.HOSTINGER_FTP_SERVER }}
           HOSTINGER_FTP_USERNAME: ${{ secrets.HOSTINGER_FTP_USERNAME }}
