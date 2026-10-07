@@ -22,17 +22,12 @@ jobs:
           cache: 'npm'
 
       - name: 📦 Instalar Dependências
-        run: npm ci || npm install
+        run: npm ci --legacy-peer-deps || npm install --legacy-peer-deps
 
       - name: 🔨 Compilar Versão de Produção (Build)
         run: npm run build
 
       - name: 🚀 Publicar na Hostinger via FTP
-        # Esta etapa entra em ação caso você configure os Segredos do GitHub:
-        # Repositório -> Settings -> Secrets and variables -> Actions
-        # - HOSTINGER_FTP_SERVER (ex: ftp.seusite.com.br ou IP da Hostinger)
-        # - HOSTINGER_FTP_USERNAME (seu usuário FTP do hPanel)
-        # - HOSTINGER_FTP_PASSWORD (sua senha do FTP)
         if: env.HOSTINGER_FTP_SERVER != ''
         env:
           HOSTINGER_FTP_SERVER: ${{ secrets.HOSTINGER_FTP_SERVER }}
