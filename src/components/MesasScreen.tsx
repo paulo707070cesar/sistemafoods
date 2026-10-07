@@ -211,9 +211,9 @@ export const MesasScreen: React.FC = () => {
       </div>
 
       {/* Main Body: Grid on Left/Center + Interactive Detail Panel on Right */}
-      <div className="flex-1 grid grid-cols-12 gap-3 p-3 overflow-hidden">
+      <div className="flex-1 min-h-0 grid grid-cols-12 gap-3 p-3 overflow-hidden">
         {/* ================= AREA PRINCIPAL (GRID DE MESAS OU COMANDAS) ================= */}
-        <div className="col-span-12 lg:col-span-8 overflow-y-auto pr-1">
+        <div className="col-span-12 lg:col-span-8 min-h-0 overflow-y-auto pr-1">
           {activeTab === 'mesas' ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-4 gap-3">
               {filteredTables.map((table) => {
@@ -364,7 +364,7 @@ export const MesasScreen: React.FC = () => {
         </div>
 
         {/* ================= PAINEL LATERAL (4 colunas): Detalhes da Mesa Selecionada ================= */}
-        <div className="col-span-12 lg:col-span-4 bg-[#121929]/95 rounded-2xl border border-slate-800/90 shadow-xl flex flex-col overflow-hidden">
+        <div className="col-span-12 lg:col-span-4 min-h-0 bg-[#121929]/95 rounded-2xl border border-slate-800/90 shadow-xl flex flex-col overflow-hidden">
           {selectedTable ? (
             <>
               {/* Header do Detalhe */}
