@@ -1,0 +1,7 @@
+{
+  "name": "Sistema Food - Gestão de Bar e Restaurante",
+  "description": "Sistema moderno de PDV, Mesas & Comandas, Caixa e Estoque para bares e restaurantes, com interface dark mode otimizada para tablet.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
