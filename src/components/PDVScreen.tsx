@@ -334,7 +334,7 @@ export const PDVScreen: React.FC = () => {
           </div>
 
           {/* Table Items List */}
-          <div className="flex-1 overflow-y-auto divide-y divide-slate-800/60 p-1">
+          <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-slate-800/60 p-1">
             {currentItems.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center p-6 text-center text-slate-500">
                 <div className="w-14 h-14 rounded-2xl bg-slate-800/50 flex items-center justify-center text-slate-400 mb-3 border border-slate-700/50">
@@ -606,7 +606,7 @@ export const PDVScreen: React.FC = () => {
             </div>
 
             {/* Product Quick-Pick List */}
-            <div className="flex-1 overflow-y-auto divide-y divide-slate-800/50 pr-1">
+            <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-slate-800/50 pr-1">
               {filteredProducts.length === 0 ? (
                 <div className="h-full flex items-center justify-center text-center p-4 text-slate-500 text-xs">
                   Nenhum produto encontrado para "{productSearch}"
@@ -817,7 +817,7 @@ export const PDVScreen: React.FC = () => {
               />
             </div>
 
-            <div className="flex-1 overflow-y-auto divide-y divide-slate-800 pr-1">
+            <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-slate-800 pr-1">
               {filteredProducts.map((p) => (
                 <div
                   key={p.id}
