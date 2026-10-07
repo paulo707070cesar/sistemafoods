@@ -181,7 +181,7 @@ export const FichasScreen: React.FC = () => {
           </div>
 
           {/* Product Items List */}
-          <div className="flex-1 overflow-y-auto divide-y divide-slate-800/60 p-1">
+          <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-slate-800/60 p-1">
             {eligibleProducts.map(p => {
               const metrics = getProductMetrics(p);
               const isSelected = selectedProduct?.id === p.id;
@@ -296,7 +296,7 @@ export const FichasScreen: React.FC = () => {
               </div>
 
               {/* Ingredients Breakdown */}
-              <div className="flex-1 overflow-y-auto p-3 space-y-3">
+              <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-3">
                 <div className="flex items-center justify-between text-xs font-bold text-slate-400 pb-1 border-b border-slate-800">
                   <span>Composição de Insumos da Porção</span>
                   <span>{selectedProduct.ingredients?.length || 0} ingredientes</span>
