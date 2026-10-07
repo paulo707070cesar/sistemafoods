@@ -104,6 +104,17 @@ export interface StockMovement {
 
 export type ActiveScreen = 'pdv' | 'mesas' | 'caixa' | 'estoque' | 'kds' | 'fichas' | 'dashboard' | 'rede' | 'sync_queue' | 'instrucoes';
 
+export type UserRole = 'gerente' | 'garcom' | 'cozinha' | 'caixa';
+
+export interface UserRoleConfig {
+  id: UserRole;
+  label: string;
+  shortLabel: string;
+  description: string;
+  allowedScreens: ActiveScreen[];
+  color: string;
+}
+
 export type AppInterfaceMode = 'tablet' | 'mobile_customer' | 'cloud_login' | 'cloud_remote';
 
 export type LocalServerStatus = 'online' | 'offline';

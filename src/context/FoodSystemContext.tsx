@@ -6,6 +6,8 @@ import {
   Transaction, 
   OrderItem, 
   ActiveScreen, 
+  UserRole,
+  UserRoleConfig,
   PaymentMethod,
   StockMovement,
   TableStatus,
@@ -29,6 +31,41 @@ import {
   INITIAL_SYNC_QUEUE
 } from '../data/mockData';
 
+export const USER_ROLES_CONFIG: Record<UserRole, UserRoleConfig> = {
+  gerente: {
+    id: 'gerente',
+    label: 'Gerente / Admin',
+    shortLabel: 'Gerente',
+    description: 'Acesso completo a todas as rotas, relatórios e configurações',
+    allowedScreens: ['pdv', 'mesas', 'caixa', 'estoque', 'kds', 'fichas', 'dashboard', 'rede', 'sync_queue', 'instrucoes'],
+    color: 'from-amber-500 to-orange-600'
+  },
+  garcom: {
+    id: 'garcom',
+    label: 'Garçom / Atendimento',
+    shortLabel: 'Garçom',
+    description: 'Foco na digitação de pedidos, atendimento e comandas',
+    allowedScreens: ['pdv', 'mesas', 'kds'],
+    color: 'from-blue-500 to-indigo-600'
+  },
+  cozinha: {
+    id: 'cozinha',
+    label: 'Cozinha & Bar',
+    shortLabel: 'Cozinha',
+    description: 'Foco no monitor KDS e fichas técnicas de preparo',
+    allowedScreens: ['kds', 'fichas', 'instrucoes'],
+    color: 'from-red-500 to-amber-600'
+  },
+  caixa: {
+    id: 'caixa',
+    label: 'Operador de Caixa',
+    shortLabel: 'Caixa',
+    description: 'Foco em pagamento, cobrança e fluxo financeiro',
+    allowedScreens: ['pdv', 'caixa', 'mesas'],
+    color: 'from-emerald-500 to-teal-600'
+  }
+};
+
 interface ToastMessage {
   id: string;
   type: 'success' | 'info' | 'warning' | 'error';
@@ -40,6 +77,9 @@ interface FoodSystemContextType {
   // Screens & Navigation
   activeScreen: ActiveScreen;
   setActiveScreen: (screen: ActiveScreen) => void;
+  userRole: UserRole;
+  setUserRole: (role: UserRole) => void;
+  userRoleConfig: UserRoleConfig;
   tabletFrameMode: boolean;
   setTabletFrameMode: (enabled: boolean) => void;
   toggleTabletFrameMode: () => void;
@@ -182,6 +222,24 @@ const FoodSystemContext = createContext<FoodSystemContextType | undefined>(undef
 
 export const FoodSystemProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [activeScreen, setActiveScreen] = useState<ActiveScreen>('pdv');
+  
+  // User Role & Screen Access Control
+  const [userRole, setUserRoleState] = useState<UserRole>(() => {
+    const saved = localStorage.getItem('sistema_food_user_role');
+    return (saved as UserRole) || 'gerente';
+  });
+
+  const setUserRole = (role: UserRole) => {
+    setUserRoleState(role);
+    localStorage.setItem('sistema_food_user_role', role);
+    const config = USER_ROLES_CONFIG[role];
+    if (config && !config.allowedScreens.includes(activeScreen)) {
+      setActiveScreen(config.allowedScreens[0]);
+    }
+  };
+
+  const userRoleConfig = USER_ROLES_CONFIG[userRole] || USER_ROLES_CONFIG.gerente;
+
   const [tabletFrameMode, setTabletFrameMode] = useState<boolean>(false);
   const [interfaceMode, setInterfaceMode] = useState<AppInterfaceMode>('tablet');
   const [activeMode, setActiveMode] = useState<'mesas' | 'comandas'>('mesas');
@@ -1082,6 +1140,9 @@ export const FoodSystemProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       value={{
         activeScreen,
         setActiveScreen,
+        userRole,
+        setUserRole,
+        userRoleConfig,
         tabletFrameMode,
         setTabletFrameMode,
         toggleTabletFrameMode,

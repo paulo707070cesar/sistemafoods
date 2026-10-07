@@ -18,16 +18,24 @@ import {
   Radio,
   Layers,
   Cloud,
-  BookOpen
+  BookOpen,
+  ShieldCheck,
+  UserCheck,
+  Flame,
+  Wallet,
+  ChevronDown
 } from 'lucide-react';
-import { useFoodSystem } from '../context/FoodSystemContext';
-import { ActiveScreen } from '../types';
+import { useFoodSystem, USER_ROLES_CONFIG } from '../context/FoodSystemContext';
+import { ActiveScreen, UserRole } from '../types';
 import { ConnectionStatusBadge } from './Network/ConnectionStatusBadge';
 
 export const Header: React.FC = () => {
   const { 
     activeScreen, 
     setActiveScreen, 
+    userRole,
+    setUserRole,
+    userRoleConfig,
     tabletFrameMode, 
     toggleTabletFrameMode, 
     activeTable,
@@ -40,6 +48,7 @@ export const Header: React.FC = () => {
   } = useFoodSystem();
 
   const [currentTime, setCurrentTime] = useState<string>('');
+  const [roleMenuOpen, setRoleMenuOpen] = useState<boolean>(false);
 
   useEffect(() => {
     const updateTime = () => {
@@ -56,22 +65,38 @@ export const Header: React.FC = () => {
   // Digital orders awaiting approval
   const pendingDigitalOrders = digitalOrders.filter(o => o.status === 'aguardando');
 
-  const navItems: { id: ActiveScreen; label: string; icon: React.ReactNode }[] = [
-    { id: 'pdv', label: '1. PDV', icon: <ReceiptText className="w-4 h-4" /> },
-    { id: 'mesas', label: '2. Mesas', icon: <LayoutGrid className="w-4 h-4" /> },
-    { id: 'caixa', label: '3. Caixa', icon: <CircleDollarSign className="w-4 h-4" /> },
-    { id: 'estoque', label: '4. Estoque', icon: <Package className="w-4 h-4" /> },
-    { id: 'kds', label: '5. KDS', icon: <ChefHat className="w-4 h-4" /> },
-    { id: 'fichas', label: '6. Fichas', icon: <Calculator className="w-4 h-4" /> },
-    { id: 'dashboard', label: '7. Painel', icon: <BarChart3 className="w-4 h-4" /> },
-    { id: 'rede', label: '8. Rede', icon: <Radio className="w-4 h-4" /> },
-    { id: 'sync_queue', label: '9. Fila', icon: <Layers className="w-4 h-4" /> },
-    { id: 'instrucoes', label: '10. Instruções', icon: <BookOpen className="w-4 h-4" /> },
+  const allNavItems: { id: ActiveScreen; label: string; icon: React.ReactNode; category: 'operacao' | 'cozinha' | 'gestao' | 'sistema' }[] = [
+    { id: 'pdv', label: '1. PDV', icon: <ReceiptText className="w-4 h-4" />, category: 'operacao' },
+    { id: 'mesas', label: '2. Mesas', icon: <LayoutGrid className="w-4 h-4" />, category: 'operacao' },
+    { id: 'caixa', label: '3. Caixa', icon: <CircleDollarSign className="w-4 h-4" />, category: 'gestao' },
+    { id: 'estoque', label: '4. Estoque', icon: <Package className="w-4 h-4" />, category: 'gestao' },
+    { id: 'kds', label: '5. KDS', icon: <ChefHat className="w-4 h-4" />, category: 'cozinha' },
+    { id: 'fichas', label: '6. Fichas', icon: <Calculator className="w-4 h-4" />, category: 'cozinha' },
+    { id: 'dashboard', label: '7. Painel', icon: <BarChart3 className="w-4 h-4" />, category: 'gestao' },
+    { id: 'rede', label: '8. Rede', icon: <Radio className="w-4 h-4" />, category: 'sistema' },
+    { id: 'sync_queue', label: '9. Fila Sync', icon: <Layers className="w-4 h-4" />, category: 'sistema' },
+    { id: 'instrucoes', label: '10. Ajuda', icon: <BookOpen className="w-4 h-4" />, category: 'sistema' },
   ];
+
+  // Filter items based on active role
+  const allowedNavItems = allNavItems.filter(item => userRoleConfig.allowedScreens.includes(item.id));
+
+  const roleIcons: Record<UserRole, React.ReactNode> = {
+    gerente: <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />,
+    garcom: <UserCheck className="w-3.5 h-3.5 text-blue-400" />,
+    cozinha: <Flame className="w-3.5 h-3.5 text-orange-400" />,
+    caixa: <Wallet className="w-3.5 h-3.5 text-emerald-400" />
+  };
 
   const handleNavClick = (screen: ActiveScreen) => {
     playFeedbackSound('click');
     setActiveScreen(screen);
+  };
+
+  const handleRoleSelect = (role: UserRole) => {
+    playFeedbackSound('click');
+    setUserRole(role);
+    setRoleMenuOpen(false);
   };
 
   const handleOpenPendingReview = () => {
@@ -81,8 +106,8 @@ export const Header: React.FC = () => {
   };
 
   return (
-    <header className="min-h-[3.5rem] bg-[#0e1424] border-b border-slate-800/80 px-2 sm:px-4 py-1.5 flex items-center justify-between shrink-0 select-none z-30 gap-2">
-      {/* Brand & Context */}
+    <header className="min-h-[3.75rem] bg-[#0e1424] border-b border-slate-800/80 px-2 sm:px-4 py-1.5 flex items-center justify-between shrink-0 select-none z-30 gap-2 sm:gap-3">
+      {/* Left: Brand & Cargo Selector */}
       <div className="flex items-center gap-2 sm:gap-3 shrink-0">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center text-white shadow-lg shadow-orange-500/20 shrink-0">
@@ -92,9 +117,6 @@ export const Header: React.FC = () => {
             <div className="flex items-center gap-1.5">
               <span className="font-bold text-sm sm:text-base tracking-tight text-white flex items-center gap-1 whitespace-nowrap">
                 Sistema <span className="text-orange-500">Food</span>
-              </span>
-              <span className="hidden 2xl:inline text-[9px] tracking-wider font-semibold uppercase px-1.5 py-0.5 rounded bg-orange-500/10 text-orange-400 border border-orange-500/20 whitespace-nowrap">
-                PRO BAR & RESTO
               </span>
             </div>
             <div className="hidden md:flex items-center gap-1.5 text-[10px] text-slate-400 whitespace-nowrap">
@@ -106,6 +128,55 @@ export const Header: React.FC = () => {
               <span className="font-mono text-slate-300">R$ {totalHoje.toFixed(2)}</span>
             </div>
           </div>
+        </div>
+
+        {/* Cargo Selector Pill */}
+        <div className="relative">
+          <button
+            onClick={() => setRoleMenuOpen(!roleMenuOpen)}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 hover:border-orange-500/50 text-xs font-bold text-slate-200 transition-all pos-btn-press shrink-0"
+            title="Alternar Perfil / Cargo de Acesso"
+          >
+            <span className={`p-1 rounded-md bg-gradient-to-r ${userRoleConfig.color}`}>
+              {roleIcons[userRole]}
+            </span>
+            <span className="hidden sm:inline text-white font-extrabold">{userRoleConfig.shortLabel}</span>
+            <ChevronDown className="w-3 h-3 text-slate-400" />
+          </button>
+
+          {roleMenuOpen && (
+            <div className="absolute left-0 top-full mt-1.5 w-56 bg-[#121929] border border-slate-700/80 rounded-xl shadow-2xl py-1.5 z-50 animate-fadeIn">
+              <div className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400 border-b border-slate-800">
+                Alternar Cargo / Perfil
+              </div>
+              {(Object.keys(USER_ROLES_CONFIG) as UserRole[]).map((rKey) => {
+                const conf = USER_ROLES_CONFIG[rKey];
+                const isCurrent = userRole === rKey;
+                return (
+                  <button
+                    key={rKey}
+                    onClick={() => handleRoleSelect(rKey)}
+                    className={`w-full text-left px-3 py-2 flex items-start gap-2 text-xs transition-colors ${
+                      isCurrent 
+                        ? 'bg-orange-500/15 text-orange-400 font-bold' 
+                        : 'text-slate-300 hover:bg-slate-800/80'
+                    }`}
+                  >
+                    <span className={`mt-0.5 p-1 rounded ${isCurrent ? 'bg-orange-500 text-white' : 'bg-slate-800 text-slate-400'}`}>
+                      {roleIcons[rKey]}
+                    </span>
+                    <div>
+                      <div className="font-bold text-slate-100 flex items-center justify-between">
+                        <span>{conf.label}</span>
+                        {isCurrent && <span className="text-[9px] px-1.5 py-0.5 rounded bg-orange-500/20 text-orange-400">Ativo</span>}
+                      </div>
+                      <div className="text-[10px] text-slate-400 line-clamp-1">{conf.description}</div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Real-Time Pending Digital Order Alert Banner in Header */}
@@ -121,14 +192,14 @@ export const Header: React.FC = () => {
         )}
 
         {/* Network & Connectivity Status Capsule */}
-        <div className="hidden lg:block shrink-0">
+        <div className="hidden 2xl:block shrink-0">
           <ConnectionStatusBadge />
         </div>
       </div>
 
-      {/* Main Navigation tabs - Expansível com espaçamento perfeito */}
-      <nav className="flex-1 min-w-0 flex items-center justify-start xl:justify-center gap-1.5 bg-[#121829] p-1.5 rounded-xl border border-slate-800/90 overflow-x-auto no-scrollbar scroll-smooth mx-1 sm:mx-2">
-        {navItems.map(item => {
+      {/* Main Navigation tabs - Clean e Filtrado por Cargo */}
+      <nav className="flex-1 min-w-0 flex items-center justify-start lg:justify-center gap-1.5 bg-[#121829] p-1.5 rounded-xl border border-slate-800/90 overflow-x-auto no-scrollbar scroll-smooth mx-1 sm:mx-2">
+        {allowedNavItems.map(item => {
           const isActive = activeScreen === item.id;
           return (
             <button
@@ -171,7 +242,7 @@ export const Header: React.FC = () => {
           title="Acessar versão Nuvem Remota (Dono)"
         >
           <Cloud className="w-3.5 h-3.5" />
-          <span>Acesso Nuvem</span>
+          <span>Nuvem</span>
         </button>
 
         {/* View Customer Mobile Menu Button */}
@@ -184,7 +255,7 @@ export const Header: React.FC = () => {
           title="Ver como o cliente no celular"
         >
           <Smartphone className="w-3.5 h-3.5" />
-          <span>Ver no Celular</span>
+          <span>Celular</span>
         </button>
 
         {/* Tablet Frame Mode Toggle */}
@@ -210,4 +281,3 @@ export const Header: React.FC = () => {
     </header>
   );
 };
-
