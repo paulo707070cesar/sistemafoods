@@ -111,7 +111,7 @@ export const CaixaScreen: React.FC = () => {
   ];
 
   return (
-    <div className="flex-1 flex flex-col h-[calc(100vh-3.5rem)] bg-[#0b101c] overflow-hidden select-none">
+    <div className="flex-1 flex flex-col h-full min-h-0 bg-[#0b101c] overflow-hidden select-none">
       {/* Top Banner with Source Selector */}
       <div className="h-14 bg-[#121929] border-b border-slate-800/80 px-4 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
