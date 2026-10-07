@@ -111,7 +111,24 @@ function createWindow() {
 
 // Safely verify if running inside Electron runtime (prevents crash when invoked in standard Node web servers)
 if (!app || typeof app.whenReady !== 'function') {
-  console.log('Sistema Food: Executando em ambiente Web Node.js. Inicialização da janela Desktop ignorada.');
+  console.log('Sistema Food: Executando em ambiente Web Node.js na Hostinger. Inicializando servidor Express...');
+  try {
+    const express = require('express');
+    const expressApp = express();
+    const PORT = process.env.PORT || 3000;
+    const distPath = path.join(__dirname, '../dist');
+
+    expressApp.use(express.static(distPath));
+    expressApp.get('*', (req, res) => {
+      res.sendFile(path.join(distPath, 'index.html'));
+    });
+
+    expressApp.listen(PORT, () => {
+      console.log(`Sistema Food Web Server escutando na porta ${PORT}`);
+    });
+  } catch (err) {
+    console.error('Erro ao iniciar servidor Express:', err);
+  }
 } else {
   // When Electron has finished initialization
   app.whenReady().then(() => {
@@ -131,4 +148,5 @@ if (!app || typeof app.whenReady !== 'function') {
     }
   });
 }
+
 
