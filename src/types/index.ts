@@ -7,6 +7,8 @@ export type ProductCategory =
   | 'Pizzas'
   | 'Sobremesas';
 
+export type ProductionStation = 'cozinha' | 'bar' | 'outro';
+
 export interface Product {
   id: string;
   name: string;
@@ -21,6 +23,7 @@ export interface Product {
   expiryDate?: string; // YYYY-MM-DD para controle de validade
   ingredients?: { name: string; quantity: string; unitCost: number }[]; // Ficha técnica
   suggestedUpsellIds?: string[]; // IDs de produtos recomendados para upsell
+  productionStation?: ProductionStation; // Destino do pedido no KDS
 }
 
 export interface OrderItem {
@@ -75,6 +78,7 @@ export type PaymentMethod =
 export interface Transaction {
   id: string;
   timestamp: string;
+  createdAt?: string;
   source: string; // 'Mesa 05' ou 'Comanda #104'
   waiter: string;
   operator: string;
@@ -88,6 +92,9 @@ export interface Transaction {
   cashReceived?: number;
   change?: number;
   status: 'aprovado' | 'estornado';
+  reversalReason?: string;
+  reversedAt?: string;
+  reversedBy?: string;
   itemsSummary: string;
 }
 
@@ -161,4 +168,3 @@ export interface DigitalOrder {
 }
 
 export type CustomerScreenStep = 'welcome' | 'menu' | 'status' | 'pagamento';
-
