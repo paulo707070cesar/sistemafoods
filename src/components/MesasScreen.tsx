@@ -452,7 +452,7 @@ export const MesasScreen: React.FC = () => {
               )}
 
               {/* Items List in Table */}
-              <div className="flex-1 overflow-y-auto p-3 divide-y divide-slate-800/50">
+              <div className="flex-1 min-h-0 overflow-y-auto p-3 divide-y divide-slate-800/50">
                 <div className="flex items-center justify-between pb-2 text-xs font-bold text-slate-400 uppercase tracking-wider">
                   <span>Itens Consumidos</span>
                   <span>{selectedTable.items.length} itens</span>
