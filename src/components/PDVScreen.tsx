@@ -320,9 +320,9 @@ export const PDVScreen: React.FC = () => {
       </div>
 
       {/* Main Two-Column Layout */}
-      <div className="flex-1 grid grid-cols-12 gap-3 p-3 overflow-hidden">
+      <div className="flex-1 min-h-0 grid grid-cols-12 gap-3 p-3 overflow-hidden">
         {/* ================= COLUNA ESQUERDA (7 colunas): Lista de Produtos e Ações do Pedido ================= */}
-        <div className="col-span-12 lg:col-span-7 flex flex-col bg-[#121929]/95 rounded-2xl border border-slate-800/90 shadow-xl overflow-hidden">
+        <div className="col-span-12 lg:col-span-7 min-h-0 flex flex-col bg-[#121929]/95 rounded-2xl border border-slate-800/90 shadow-xl overflow-hidden">
           {/* Header of Table Order */}
           <div className="bg-[#182238] px-4 py-2.5 border-b border-slate-800 flex items-center justify-between text-xs font-bold text-slate-300">
             <div className="grid grid-cols-12 w-full gap-2 items-center">
@@ -480,7 +480,7 @@ export const PDVScreen: React.FC = () => {
         </div>
 
         {/* ================= COLUNA DIREITA (5 colunas): Resumo do Pedido & Grade de Categorias/Produtos ================= */}
-        <div className="col-span-12 lg:col-span-5 flex flex-col gap-3 overflow-hidden">
+        <div className="col-span-12 lg:col-span-5 min-h-0 flex flex-col gap-3 overflow-hidden">
           {/* Order Summary Panel (Total, Desconto, Total Final) */}
           <div className="bg-[#121929]/95 rounded-2xl border border-slate-800/90 shadow-xl p-3.5 flex flex-col gap-2.5">
             <div className="flex items-center justify-between pb-2 border-b border-slate-800 text-xs">
@@ -564,7 +564,7 @@ export const PDVScreen: React.FC = () => {
           </div>
 
           {/* Categorias & Lista de Produtos para Seleção Rápida */}
-          <div className="flex-1 bg-[#121929]/95 rounded-2xl border border-slate-800/90 shadow-xl p-3 flex flex-col gap-2.5 overflow-hidden">
+          <div className="flex-1 min-h-0 bg-[#121929]/95 rounded-2xl border border-slate-800/90 shadow-xl p-3 flex flex-col gap-2.5 overflow-hidden">
             {/* Search Input */}
             <div className="relative">
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
