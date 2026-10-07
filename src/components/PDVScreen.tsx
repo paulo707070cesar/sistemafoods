@@ -178,7 +178,7 @@ export const PDVScreen: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 flex flex-col h-[calc(100vh-3.5rem)] bg-[#0b101c] overflow-hidden select-none">
+    <div className="flex-1 flex flex-col h-full min-h-0 bg-[#0b101c] overflow-hidden select-none">
       {/* Top Context Subheader */}
       <div className="h-12 bg-[#121929] border-b border-slate-800/80 px-4 flex items-center justify-between shrink-0 gap-3">
         {/* Left: Mode switch (Mesas / Comandas) & Selected table dropdown */}
