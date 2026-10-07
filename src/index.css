@@ -48,15 +48,3 @@
 .pos-btn-press:active {
   transform: scale(0.98);
 }
-
-/* Scroll vertical das telas principais */
-/*
- * As telas do POS usam containers com altura calculada e overflow-hidden.
- * Mantemos o layout interno, mas permitimos que a tela inteira role quando
- * o conteúdo ultrapassar a altura disponível (desktop e tablet).
- */
-main > div {
-  overflow-y: auto !important;
-  overflow-x: hidden;
-  scrollbar-gutter: stable;
-}
