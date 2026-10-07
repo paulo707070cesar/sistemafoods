@@ -282,9 +282,9 @@ export const KDSScreen: React.FC = () => {
       </div>
 
       {/* 3 Columns Kanban Board */}
-      <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-3 p-3 overflow-hidden">
+      <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-3 gap-3 p-3 overflow-hidden">
         {/* Column 1: Recebidos / Pendentes */}
-        <div className="flex flex-col bg-[#0e1526] rounded-2xl border border-slate-800/90 shadow-xl overflow-hidden">
+        <div className="min-h-0 flex flex-col bg-[#0e1526] rounded-2xl border border-slate-800/90 shadow-xl overflow-hidden">
           <div className="p-3.5 bg-[#162035] border-b border-slate-800 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-orange-500 animate-pulse"></span>
