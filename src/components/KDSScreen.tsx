@@ -295,7 +295,7 @@ export const KDSScreen: React.FC = () => {
             <span className="text-[11px] text-slate-400">Aguardando aceite</span>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-3 space-y-3">
+          <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-3">
             {recebidos.length === 0 ? (
               <div className="h-44 flex flex-col items-center justify-center text-xs text-slate-500 text-center">
                 <ChefHat className="w-8 h-8 text-slate-700 mb-2" />
@@ -321,7 +321,7 @@ export const KDSScreen: React.FC = () => {
             </span>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-3 space-y-3">
+          <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-3">
             {emPreparo.length === 0 ? (
               <div className="h-44 flex flex-col items-center justify-center text-xs text-slate-500 text-center">
                 <Clock className="w-8 h-8 text-slate-700 mb-2" />
@@ -347,7 +347,7 @@ export const KDSScreen: React.FC = () => {
             </span>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-3 space-y-3">
+          <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-3">
             {prontos.length === 0 ? (
               <div className="h-44 flex flex-col items-center justify-center text-xs text-slate-500 text-center">
                 <CheckCircle2 className="w-8 h-8 text-slate-700 mb-2" />
