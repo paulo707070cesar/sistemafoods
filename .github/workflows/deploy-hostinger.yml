@@ -1,0 +1,48 @@
+name: Deploy para Hostinger via GitHub
+
+# Dispara a cada push na branch principal (main ou master)
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Clonar Repositório
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Configurar Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: 📦 Instalar Dependências
+        run: npm ci || npm install
+
+      - name: 🔨 Compilar Versão de Produção (Build)
+        run: npm run build
+
+      - name: 🚀 Publicar na Hostinger via FTP
+        # Esta etapa entra em ação caso você configure os Segredos do GitHub:
+        # Repositório -> Settings -> Secrets and variables -> Actions
+        # - HOSTINGER_FTP_SERVER (ex: ftp.seusite.com.br ou IP da Hostinger)
+        # - HOSTINGER_FTP_USERNAME (seu usuário FTP do hPanel)
+        # - HOSTINGER_FTP_PASSWORD (sua senha do FTP)
+        if: env.HOSTINGER_FTP_SERVER != ''
+        env:
+          HOSTINGER_FTP_SERVER: ${{ secrets.HOSTINGER_FTP_SERVER }}
+          HOSTINGER_FTP_USERNAME: ${{ secrets.HOSTINGER_FTP_USERNAME }}
+          HOSTINGER_FTP_PASSWORD: ${{ secrets.HOSTINGER_FTP_PASSWORD }}
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.HOSTINGER_FTP_SERVER }}
+          username: ${{ secrets.HOSTINGER_FTP_USERNAME }}
+          password: ${{ secrets.HOSTINGER_FTP_PASSWORD }}
+          local-dir: ./dist/
+          server-dir: ./public_html/
+          dangerous-clean-slate: false

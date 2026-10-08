@@ -1,0 +1,57 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background-color: #0d121f;
+    color: #f1f5f9;
+  }
+}
+
+/* Custom scrollbar for dark mode POS */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.6);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.4);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(249, 115, 22, 0.6);
+}
+
+/* Hide scrollbar for clean horizontal menus */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* POS Button Active Effect */
+.pos-btn-press {
+  transition: all 0.12s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.pos-btn-press:active {
+  transform: scale(0.98);
+}
+
