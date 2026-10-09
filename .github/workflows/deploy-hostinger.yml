@@ -1,15 +1,13 @@
-name: Deploy para Hostinger via GitHub
+name: Publicação estática (opcional)
 
-# Publica apenas a interface estática (dist/) na hospedagem compartilhada.
-# A API Node (server.js + server/ + shared/) NÃO é enviada por FTP e precisa de
-# hospedagem com suporte a Node.js (VPS, Cloud ou Node.js no hPanel).
-# Sem a API, o aplicativo funciona em modo local e o Acesso Remoto fica indisponível.
+# A publicação real do Sistema Food é feita pela integração Git do hPanel da Hostinger
+# (Sites > Implantações), que copia os arquivos do repositório para a hospedagem.
+#
+# Este workflow é OPCIONAL e serve apenas para enviar a interface estática por FTP.
+# Ele NÃO publica o servidor Node, então o sistema sobe sem API e sem login.
+# Por isso roda somente de forma manual, para não falhar a cada push.
 
 on:
-  push:
-    branches:
-      - main
-      - master
   workflow_dispatch:
 
 jobs:

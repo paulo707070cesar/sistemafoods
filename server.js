@@ -31,9 +31,14 @@ if (!Number.isInteger(port) || port < 1 || port > 65535) {
 }
 
 const hasBuild = fs.existsSync(path.join(distPath, 'index.html'));
+console.log(`Sistema Food: dist=${distPath} banco=${dbPath} node=${process.version}`);
+
 if (!hasBuild) {
   if (process.env.NODE_ENV === 'production') {
-    throw new Error(`Build não encontrada em ${distPath}. Execute npm run build antes de iniciar o servidor.`);
+    throw new Error(
+      `Build da interface não encontrada em ${distPath}. ` +
+      'A pasta dist/ precisa existir no servidor: execute "npm run build" ou publique a versão que a inclui.'
+    );
   }
   console.warn(`Aviso: build não encontrada em ${distPath}. Somente os endpoints /api e /health estarão disponíveis.`);
 }
