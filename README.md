@@ -101,6 +101,8 @@ npm run build
 npm start
 ```
 
+Guia completo de publicação: **[DEPLOY_HOSTINGER.md](DEPLOY_HOSTINGER.md)**.
+
 O servidor Express entrega `dist/` com cache imutável para assets, `no-store` para o HTML, cabeçalhos de segurança, CSP e HSTS quando servido por HTTPS.
 
 - Para uso somente local, mantenha `HOST=127.0.0.1`.

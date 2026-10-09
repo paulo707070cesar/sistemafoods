@@ -1,0 +1,38 @@
+[Unit]
+Description=Sistema Food - Bar & Restaurante
+Documentation=https://github.com/paulo707070cesar/sistemafoods
+After=network.target
+
+[Service]
+Type=simple
+User=sistemafood
+Group=sistemafood
+WorkingDirectory=/opt/sistema-food
+
+# Porta interna. Coloque o nginx como proxy reverso na frente.
+Environment=NODE_ENV=production
+Environment=PORT=3000
+Environment=HOST=127.0.0.1
+Environment=TRUST_PROXY=true
+Environment=SESSION_COOKIE_SECURE=true
+Environment=DB_PATH=/var/lib/sistema-food/sistema-food.sqlite
+
+# Credenciais usadas apenas na primeira execução, quando não há usuário cadastrado.
+# Substitua por valores fortes ou remova depois do primeiro acesso.
+EnvironmentFile=-/etc/sistema-food/ambiente.conf
+
+ExecStart=/usr/bin/node server.js
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+# Endurecimento básico
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/var/lib/sistema-food
+
+[Install]
+WantedBy=multi-user.target
