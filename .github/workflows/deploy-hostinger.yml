@@ -1,13 +1,10 @@
-name: Publicação estática (opcional)
-
-# A publicação real do Sistema Food é feita pela integração Git do hPanel da Hostinger
-# (Sites > Implantações), que copia os arquivos do repositório para a hospedagem.
-#
-# Este workflow é OPCIONAL e serve apenas para enviar a interface estática por FTP.
-# Ele NÃO publica o servidor Node, então o sistema sobe sem API e sem login.
-# Por isso roda somente de forma manual, para não falhar a cada push.
+name: Deploy para Hostinger via GitHub
 
 on:
+  push:
+    branches:
+      - main
+      - master
   workflow_dispatch:
 
 jobs:
@@ -17,10 +14,10 @@ jobs:
       - name: 📥 Clonar Repositório
         uses: actions/checkout@v4
 
-      - name: ⚙️ Configurar Node.js 22
+      - name: ⚙️ Configurar Node.js 20
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 20
           cache: 'npm'
 
       - name: 📦 Instalar Dependências
@@ -36,25 +33,10 @@ jobs:
           path: dist/
           retention-days: 7
 
-      - name: ⚠️ Conferir segredos de FTP
-        env:
-          FTP_SERVER: ${{ secrets.HOSTINGER_FTP_SERVER }}
-          FTP_USERNAME: ${{ secrets.HOSTINGER_FTP_USERNAME }}
-          FTP_PASSWORD: ${{ secrets.HOSTINGER_FTP_PASSWORD }}
-        run: |
-          faltando=""
-          [ -z "$FTP_SERVER" ] && faltando="$faltando HOSTINGER_FTP_SERVER"
-          [ -z "$FTP_USERNAME" ] && faltando="$faltando HOSTINGER_FTP_USERNAME"
-          [ -z "$FTP_PASSWORD" ] && faltando="$faltando HOSTINGER_FTP_PASSWORD"
-          if [ -n "$faltando" ]; then
-            echo "::error::Segredos ausentes:$faltando"
-            echo "Configure em Settings > Secrets and variables > Actions do repositório."
-            echo "Sem eles nada é publicado e o deploy fica silenciosamente sem efeito."
-            exit 1
-          fi
-          echo "Segredos de FTP presentes."
-
       - name: 🚀 Publicar na Hostinger via FTP
+        if: env.HOSTINGER_FTP_SERVER != ''
+        env:
+          HOSTINGER_FTP_SERVER: ${{ secrets.HOSTINGER_FTP_SERVER }}
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ${{ secrets.HOSTINGER_FTP_SERVER }}

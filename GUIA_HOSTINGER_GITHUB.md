@@ -1,13 +1,5 @@
 # 🌐 Guia de Publicação na Hostinger através do GitHub
 
-> ⚠️ **LEIA PRIMEIRO:** este guia descreve a publicação **estática** (apenas `dist/`).
-> Ele **não** coloca no ar o servidor Node, e portanto o sistema sobe em modo local, sem login e sem dados compartilhados.
-> Para o sistema completo, use **[DEPLOY_HOSTINGER.md](DEPLOY_HOSTINGER.md)**.
->
-> Além disso, o deploy por FTP **só funciona depois** de cadastrar os segredos
-> `HOSTINGER_FTP_SERVER`, `HOSTINGER_FTP_USERNAME` e `HOSTINGER_FTP_PASSWORD` em
-> **Settings → Secrets and variables → Actions** no GitHub. Sem eles o workflow falha de forma explícita.
-
 Este guia passo a passo ensina como enviar o **Sistema Food — Bar & Restaurante** para a **Hostinger** utilizando o **GitHub**, garantindo que o sistema funcione com carregamento ultra-rápido, suporte a SPA (sem erros 404 ao recarregar a página) e certificado SSL gratuito.
 
 ---

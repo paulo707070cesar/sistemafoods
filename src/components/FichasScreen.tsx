@@ -21,7 +21,7 @@ import { useFoodSystem } from '../context/FoodSystemContext';
 import { Product, ProductCategory } from '../types';
 
 export const FichasScreen: React.FC = () => {
-  const { products, openReceiptModal, updateProductPrice, addToast, playFeedbackSound } = useFoodSystem();
+  const { products, openReceiptModal, addToast, playFeedbackSound } = useFoodSystem();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('Todas');
@@ -88,7 +88,8 @@ export const FichasScreen: React.FC = () => {
   const handleApplySimulatedPrice = () => {
     if (!selectedProduct) return;
     playFeedbackSound('success');
-    updateProductPrice(selectedProduct.id, simulatedPrice);
+    selectedProduct.price = simulatedPrice;
+    addToast('success', 'Preço Atualizado!', `Novo preço de R$ ${simulatedPrice.toFixed(2)} definido para ${selectedProduct.name}.`);
   };
 
   return (

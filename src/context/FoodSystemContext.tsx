@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { 
   Product, 
   Table, 
@@ -138,7 +138,6 @@ interface FoodSystemContextType {
   addStock: (productId: string, qty: number, reason: string) => void;
   removeStock: (productId: string, qty: number, reason: string) => void;
   addNewProduct: (productData: Omit<Product, 'id'>) => void;
-  updateProductPrice: (productId: string, price: number) => void;
 
   // Digital Menu & Customer Mobile Flow
   customerScreenStep: CustomerScreenStep;
@@ -209,29 +208,17 @@ interface FoodSystemContextType {
   isRestartingServer: boolean;
   wifiTransmissionFeedback: { active: boolean; message: string; from: string; to: string } | null;
   cloudUser: { email: string; name: string } | null;
-  /** Revisão do estado confirmada pelo servidor; 0 indica operação apenas local. */
-  serverRevision: number;
   toggleLocalServerStatus: () => void;
   toggleInternetStatus: () => void;
   restartLocalServer: () => void;
   triggerSyncNow: () => void;
   retrySyncQueue: () => void;
-  cloudLogin: (email: string, pass: string) => Promise<boolean>;
-  cloudLogout: () => Promise<void>;
+  cloudLogin: (email: string, pass: string) => boolean;
+  cloudLogout: () => void;
   triggerWifiFlyAnimation: (message: string, from: string, to: string) => void;
 }
 
 const FoodSystemContext = createContext<FoodSystemContextType | undefined>(undefined);
-
-const readStored = <T,>(key: string, fallback: T): T => {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as T) : fallback;
-  } catch {
-    localStorage.removeItem(key);
-    return fallback;
-  }
-};
 
 export const FoodSystemProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // User Role & Screen Access Control
@@ -289,7 +276,10 @@ export const FoodSystemProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     from: string;
     to: string;
   } | null>(null);
-  const [cloudUser, setCloudUser] = useState<{ email: string; name: string } | null>(null);
+  const [cloudUser, setCloudUser] = useState<{ email: string; name: string } | null>({
+    email: 'dono@sistemafood.com.br',
+    name: 'Roberto Alencar (Dono / Administrador)'
+  });
   
   // Default selected Table 5 as shown in reference
   const [selectedTableId, setSelectedTableId] = useState<number>(5);
@@ -304,9 +294,10 @@ export const FoodSystemProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [lastCustomerOrderId, setLastCustomerOrderId] = useState<string | null>('d-ord-101');
 
   // Digital Orders state
-  const [digitalOrders, setDigitalOrders] = useState<DigitalOrder[]>(() =>
-    readStored('sistema_food_digital_orders', INITIAL_DIGITAL_ORDERS)
-  );
+  const [digitalOrders, setDigitalOrders] = useState<DigitalOrder[]>(() => {
+    const saved = localStorage.getItem('sistema_food_digital_orders');
+    return saved ? JSON.parse(saved) : INITIAL_DIGITAL_ORDERS;
+  });
 
   const [pendingDigitalOrderToReview, setPendingDigitalOrderToReview] = useState<DigitalOrder | null>(null);
 
@@ -314,21 +305,25 @@ export const FoodSystemProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [qrCodeModalOpen, setQrCodeModalOpen] = useState<boolean>(false);
   const [qrCodeModalTable, setQrCodeModalTable] = useState<string>('Mesa 05');
 
-  const [tables, setTables] = useState<Table[]>(() =>
-    readStored('sistema_food_tables', INITIAL_TABLES)
-  );
+  const [tables, setTables] = useState<Table[]>(() => {
+    const saved = localStorage.getItem('sistema_food_tables');
+    return saved ? JSON.parse(saved) : INITIAL_TABLES;
+  });
 
-  const [comandas, setComandas] = useState<Comanda[]>(() =>
-    readStored('sistema_food_comandas', INITIAL_COMANDAS)
-  );
+  const [comandas, setComandas] = useState<Comanda[]>(() => {
+    const saved = localStorage.getItem('sistema_food_comandas');
+    return saved ? JSON.parse(saved) : INITIAL_COMANDAS;
+  });
 
-  const [products, setProducts] = useState<Product[]>(() =>
-    readStored('sistema_food_products', INITIAL_PRODUCTS)
-  );
+  const [products, setProducts] = useState<Product[]>(() => {
+    const saved = localStorage.getItem('sistema_food_products');
+    return saved ? JSON.parse(saved) : INITIAL_PRODUCTS;
+  });
 
-  const [transactions, setTransactions] = useState<Transaction[]>(() =>
-    readStored('sistema_food_transactions', INITIAL_TRANSACTIONS)
-  );
+  const [transactions, setTransactions] = useState<Transaction[]>(() => {
+    const saved = localStorage.getItem('sistema_food_transactions');
+    return saved ? JSON.parse(saved) : INITIAL_TRANSACTIONS;
+  });
 
   const [stockMovements, setStockMovements] = useState<StockMovement[]>([]);
 
@@ -359,127 +354,6 @@ export const FoodSystemProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   useEffect(() => {
     localStorage.setItem('sistema_food_digital_orders', JSON.stringify(digitalOrders));
   }, [digitalOrders]);
-
-  // Restaura a sessão do servidor ao recarregar a página.
-  // Ignorado no Electron (file://), onde a API não está disponível.
-  useEffect(() => {
-    if (!window.location.protocol.startsWith('http')) return;
-
-    let cancelled = false;
-    fetch('/api/auth/me', { credentials: 'same-origin' })
-      .then(response => (response.ok ? response.json() : null))
-      .then(payload => {
-        if (!cancelled && payload?.user) setCloudUser(payload.user);
-      })
-      .catch(() => {
-        // Servidor indisponível: mantém o usuário deslogado sem interromper a operação local.
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  // ---------------------------------------------------------------------------
-  // Sincronização com o servidor.
-  // O servidor é a fonte de verdade das regras de negócio (estoque, totais e
-  // auditoria). A interface aplica a alteração localmente para resposta imediata
-  // e depois adota o estado devolvido pelo servidor, que corrige divergências.
-  // Sem servidor acessível (por exemplo no Electron via file://), o sistema
-  // continua operando apenas com o estado local.
-  // ---------------------------------------------------------------------------
-  const serverModeRef = useRef(false);
-  const serverRevisionRef = useRef(0);
-  const [serverRevision, setServerRevision] = useState(0);
-
-  const applyServerState = (payload: { revision?: number; state?: Record<string, unknown> } | null) => {
-    if (!payload?.state) return;
-
-    const revision = Number(payload.revision) || 0;
-    // Ignora respostas atrasadas para não reverter o estado já mais recente.
-    if (revision < serverRevisionRef.current) return;
-    serverRevisionRef.current = revision;
-    setServerRevision(revision);
-
-    const next = payload.state as Record<string, unknown>;
-    if (Array.isArray(next.tables)) setTables(next.tables as Table[]);
-    if (Array.isArray(next.comandas)) setComandas(next.comandas as Comanda[]);
-    if (Array.isArray(next.products)) setProducts(next.products as Product[]);
-    if (Array.isArray(next.transactions)) setTransactions(next.transactions as Transaction[]);
-    if (Array.isArray(next.digitalOrders)) setDigitalOrders(next.digitalOrders as DigitalOrder[]);
-    if (Array.isArray(next.stockMovements)) setStockMovements(next.stockMovements as StockMovement[]);
-    if (Array.isArray(next.syncQueue)) setSyncQueue(next.syncQueue as SyncQueueItem[]);
-  };
-
-  const refreshFromServer = async () => {
-    try {
-      const response = await fetch('/api/state', { credentials: 'same-origin' });
-      if (!response.ok) return;
-      applyServerState(await response.json());
-    } catch {
-      // Mantém o estado atual até a conexão voltar.
-    }
-  };
-
-  /** Envia uma ação ao servidor; sem servidor, a alteração local já foi aplicada. */
-  const syncAction = (type: string, payload: Record<string, unknown>) => {
-    if (!serverModeRef.current) return;
-
-    void fetch('/api/state/actions', {
-      method: 'POST',
-      credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: { type, payload } })
-    })
-      .then(async response => {
-        const body = await response.json().catch(() => null);
-        if (body?.state) applyServerState(body);
-        if (!response.ok) {
-          addToast('error', 'Ação recusada pelo servidor', body?.error || 'A operação não pôde ser concluída.');
-        }
-      })
-      .catch(() => {
-        addToast('warning', 'Sem conexão com o servidor', 'A alteração ficou registrada apenas neste terminal.');
-      });
-  };
-
-  // Carrega o estado compartilhado e passa a acompanhar mudanças de outros terminais.
-  useEffect(() => {
-    if (!window.location.protocol.startsWith('http')) return;
-
-    let cancelled = false;
-    let source: EventSource | null = null;
-
-    const bootstrap = async () => {
-      try {
-        const response = await fetch('/api/state', { credentials: 'same-origin' });
-        if (!response.ok || cancelled) return;
-
-        const payload = await response.json().catch(() => null);
-        // Exige estado real: hospedagem estática devolve HTML e não deve ativar o modo servidor.
-        if (cancelled || !payload?.state) return;
-
-        applyServerState(payload);
-        serverModeRef.current = true;
-        source = new EventSource('/api/state/events');
-        source.onmessage = () => {
-          void refreshFromServer();
-        };
-        source.onerror = () => {
-          // O navegador reconecta automaticamente; nenhuma ação é necessária aqui.
-        };
-      } catch {
-        // Servidor indisponível: segue em modo local.
-      }
-    };
-
-    void bootstrap();
-
-    return () => {
-      cancelled = true;
-      source?.close();
-    };
-  }, []);
 
   // Audio feedback synthesis using Web Audio API
   const playFeedbackSound = (type: 'click' | 'success' | 'alert' | 'bell' = 'click') => {
@@ -552,19 +426,6 @@ export const FoodSystemProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   // Customer Cart operations
   const addToCustomerCart = (product: Product, qty: number = 1, obs?: string) => {
     playFeedbackSound('click');
-    if (!Number.isInteger(qty) || qty <= 0) {
-      addToast('warning', 'Quantidade inválida', 'Informe uma quantidade inteira maior que zero.');
-      return;
-    }
-
-    const alreadyInCart = customerCart
-      .filter(item => item.productId === product.id)
-      .reduce((sum, item) => sum + item.qty, 0);
-    if (alreadyInCart + qty > product.currentStock) {
-      addToast('warning', 'Estoque insuficiente', `${product.name} possui apenas ${product.currentStock} ${product.unit} disponíveis.`);
-      return;
-    }
-
     const existing = customerCart.find(i => i.productId === product.id && (!obs || i.observation === obs));
     if (existing && !obs) {
       setCustomerCart(prev => prev.map(item => {
@@ -661,13 +522,6 @@ export const FoodSystemProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       setSyncQueue(prev => [newQueueItem, ...prev]);
     }
 
-    syncAction('submitDigitalOrder', {
-      tableNumber: customerSelectedTable,
-      customerName: customerName || 'Cliente na Mesa',
-      items: customerCart.map(item => ({ productId: item.productId, qty: item.qty, observation: item.observation })),
-      observation: customerObservation
-    });
-
     return newDigitalOrder;
   };
 
@@ -677,30 +531,6 @@ export const FoodSystemProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     playFeedbackSound('success');
     const order = digitalOrders.find(o => o.id === orderId);
     if (!order) return;
-
-    const requestedByProduct = new Map<string, number>();
-    order.items.forEach(item => {
-      requestedByProduct.set(item.productId, (requestedByProduct.get(item.productId) || 0) + item.qty);
-    });
-    const unavailable = [...requestedByProduct.entries()].find(([productId, qty]) => {
-      const product = products.find(p => p.id === productId);
-      return !product || product.currentStock < qty;
-    });
-    if (unavailable) {
-      const product = products.find(p => p.id === unavailable[0]);
-      setDigitalOrders(prev => prev.map(o => o.id === orderId
-        ? { ...o, status: 'recusado', rejectionReason: `Estoque insuficiente: ${product?.name || 'produto indisponível'}` }
-        : o
-      ));
-      setPendingDigitalOrderToReview(null);
-      addToast('error', 'Pedido não aceito', `Estoque insuficiente para ${product?.name || 'um dos itens'}.`);
-      return;
-    }
-
-    setProducts(prev => prev.map(product => {
-      const qty = requestedByProduct.get(product.id) || 0;
-      return qty > 0 ? { ...product, currentStock: product.currentStock - qty } : product;
-    }));
 
     // Update status to 'preparo'
     setDigitalOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'preparo' } : o));
@@ -734,7 +564,6 @@ export const FoodSystemProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }
 
     addToast('success', 'Pedido Aceito!', `${order.orderNumber} da ${order.tableNumber} integrado ao PDV e enviado à cozinha.`);
-    syncAction('acceptDigitalOrder', { orderId });
   };
 
   const rejectDigitalOrder = (orderId: string, reason: string = 'Item indisponível no momento') => {
@@ -744,14 +573,12 @@ export const FoodSystemProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       setPendingDigitalOrderToReview(null);
     }
     addToast('warning', 'Pedido Recusado', `Pedido marcado como recusado (${reason}).`);
-    syncAction('rejectDigitalOrder', { orderId, reason });
   };
 
   const updateDigitalOrderStatus = (orderId: string, newStatus: DigitalOrderStatus) => {
     playFeedbackSound('click');
     setDigitalOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
     addToast('info', 'Status Atualizado', `Pedido alterado para ${newStatus.toUpperCase()}`);
-    syncAction('updateDigitalOrderStatus', { orderId, status: newStatus });
   };
 
   const openQRCodeModal = (tableNumber?: string) => {
@@ -767,15 +594,6 @@ export const FoodSystemProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   // Add Item to Order
   const addItemToActiveOrder = (product: Product, qty: number = 1, observation?: string) => {
     playFeedbackSound('click');
-    if (!Number.isInteger(qty) || qty <= 0) {
-      addToast('warning', 'Quantidade inválida', 'Informe uma quantidade inteira maior que zero.');
-      return;
-    }
-    if (product.currentStock < qty) {
-      addToast('warning', 'Estoque insuficiente', `${product.name} possui apenas ${product.currentStock} ${product.unit} disponíveis.`);
-      return;
-    }
-
     const now = new Date();
     const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
@@ -819,6 +637,14 @@ export const FoodSystemProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         };
       }));
 
+      // Update local product stock
+      setProducts(prev => prev.map(p => {
+        if (p.id === product.id) {
+          return { ...p, currentStock: Math.max(0, p.currentStock - qty) };
+        }
+        return p;
+      }));
+
       addToast('success', `${product.name} Adicionado`, `Qtd: ${qty} - Total: R$ ${(product.price * qty).toFixed(2)}`);
     } else {
       // Comandas mode
@@ -843,108 +669,76 @@ export const FoodSystemProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       }));
       addToast('success', `${product.name} Adicionado`, `Comanda ${activeComanda?.number}`);
     }
-
-    setProducts(prev => prev.map(p => p.id === product.id
-      ? { ...p, currentStock: Math.max(0, p.currentStock - qty) }
-      : p
-    ));
-
-    syncAction('addItem', {
-      mode: activeMode,
-      targetId: activeMode === 'mesas' ? selectedTableId : selectedComandaId,
-      productId: product.id,
-      qty,
-      observation,
-      actor: activeTable.waiter
-    });
   };
 
   const removeItemFromActiveOrder = (itemId: string) => {
     playFeedbackSound('alert');
-    const activeItems = activeMode === 'mesas' ? activeTable.items : (activeComanda?.items || []);
-    const itemToRemove = activeItems.find(item => item.id === itemId);
-    if (!itemToRemove) return;
-
-    setProducts(prev => prev.map(product => product.id === itemToRemove.productId
-      ? { ...product, currentStock: product.currentStock + itemToRemove.qty }
-      : product
-    ));
-
     if (activeMode === 'mesas') {
-      setTables(prev => prev.map(t => t.id === selectedTableId
-        ? { ...t, items: t.items.filter(i => i.id !== itemId) }
-        : t
-      ));
+      setTables(prev => prev.map(t => {
+        if (t.id !== selectedTableId) return t;
+        const itemToRemove = t.items.find(i => i.id === itemId);
+        if (itemToRemove) {
+          setProducts(prods => prods.map(p => p.id === itemToRemove.productId ? { ...p, currentStock: p.currentStock + itemToRemove.qty } : p));
+        }
+        return {
+          ...t,
+          items: t.items.filter(i => i.id !== itemId)
+        };
+      }));
+      addToast('info', 'Item Cancelado', 'Item removido da comanda atual.');
     } else {
-      setComandas(prev => prev.map(c => c.id === selectedComandaId
-        ? { ...c, items: c.items.filter(i => i.id !== itemId) }
-        : c
-      ));
+      setComandas(prev => prev.map(c => {
+        if (c.id !== selectedComandaId) return c;
+        return { ...c, items: c.items.filter(i => i.id !== itemId) };
+      }));
     }
-    addToast('info', 'Item Cancelado', 'Item removido da comanda atual e devolvido ao estoque.');
-    syncAction('removeItem', {
-      mode: activeMode,
-      targetId: activeMode === 'mesas' ? selectedTableId : selectedComandaId,
-      itemId
-    });
   };
 
   const updateItemQty = (itemId: string, delta: number) => {
     playFeedbackSound('click');
-    if (!Number.isInteger(delta) || delta === 0) return;
-
-    const activeItems = activeMode === 'mesas' ? activeTable.items : (activeComanda?.items || []);
-    const target = activeItems.find(item => item.id === itemId);
-    if (!target) return;
-
-    const nextQty = target.qty + delta;
-    const effectiveDelta = nextQty <= 0 ? -target.qty : delta;
-    const product = products.find(item => item.id === target.productId);
-
-    if (effectiveDelta > 0 && (!product || product.currentStock < effectiveDelta)) {
-      addToast('warning', 'Estoque insuficiente', `Não há estoque suficiente para aumentar ${target.name}.`);
-      return;
-    }
-
-    setProducts(prev => prev.map(item => item.id === target.productId
-      ? { ...item, currentStock: Math.max(0, item.currentStock - effectiveDelta) }
-      : item
-    ));
-
     if (activeMode === 'mesas') {
-      setTables(prev => prev.map(table => {
-        if (table.id !== selectedTableId) return table;
+      setTables(prev => prev.map(t => {
+        if (t.id !== selectedTableId) return t;
+        const target = t.items.find(i => i.id === itemId);
+        if (!target) return t;
+
+        const nextQty = target.qty + delta;
+        if (nextQty <= 0) {
+          return {
+            ...t,
+            items: t.items.filter(i => i.id !== itemId)
+          };
+        }
+
         return {
-          ...table,
-          items: nextQty <= 0
-            ? table.items.filter(item => item.id !== itemId)
-            : table.items.map(item => item.id === itemId
-              ? { ...item, qty: nextQty, total: Number((nextQty * item.price).toFixed(2)) }
-              : item
-            )
+          ...t,
+          items: t.items.map(item => {
+            if (item.id === itemId) {
+              return {
+                ...item,
+                qty: nextQty,
+                total: Number((nextQty * item.price).toFixed(2))
+              };
+            }
+            return item;
+          })
         };
       }));
     } else {
-      setComandas(prev => prev.map(comanda => {
-        if (comanda.id !== selectedComandaId) return comanda;
+      setComandas(prev => prev.map(c => {
+        if (c.id !== selectedComandaId) return c;
         return {
-          ...comanda,
-          items: nextQty <= 0
-            ? comanda.items.filter(item => item.id !== itemId)
-            : comanda.items.map(item => item.id === itemId
-              ? { ...item, qty: nextQty, total: Number((nextQty * item.price).toFixed(2)) }
-              : item
-            )
+          ...c,
+          items: c.items.map(i => {
+            if (i.id === itemId) {
+              const nq = Math.max(1, i.qty + delta);
+              return { ...i, qty: nq, total: Number((nq * i.price).toFixed(2)) };
+            }
+            return i;
+          })
         };
       }));
     }
-
-    syncAction('updateItemQty', {
-      mode: activeMode,
-      targetId: activeMode === 'mesas' ? selectedTableId : selectedComandaId,
-      itemId,
-      delta
-    });
   };
 
   const setItemObservation = (itemId: string, obs: string) => {
@@ -966,12 +760,6 @@ export const FoodSystemProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       }));
     }
     addToast('info', 'Observação salva', obs || 'Observação removida.');
-    syncAction('setItemObservation', {
-      mode: activeMode,
-      targetId: activeMode === 'mesas' ? selectedTableId : selectedComandaId,
-      itemId,
-      observation: obs
-    });
   };
 
   const clearActiveOrder = () => {
@@ -989,11 +777,6 @@ export const FoodSystemProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         };
       }));
     }
-
-    syncAction('clearOrder', {
-      mode: activeMode,
-      targetId: activeMode === 'mesas' ? selectedTableId : selectedComandaId
-    });
   };
 
   const toggleActiveServiceTax = () => {
@@ -1003,30 +786,14 @@ export const FoodSystemProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     } else {
       setComandas(prev => prev.map(c => c.id === selectedComandaId ? { ...c, hasServiceTax: !c.hasServiceTax } : c));
     }
-    syncAction('toggleServiceTax', {
-      mode: activeMode,
-      targetId: activeMode === 'mesas' ? selectedTableId : selectedComandaId
-    });
   };
 
   const setActiveDiscount = (discount: number) => {
-    const subtotal = (activeMode === 'mesas' ? activeTable.items : (activeComanda?.items || []))
-      .reduce((sum, item) => sum + item.total, 0);
-    const safeDiscount = Number.isFinite(discount)
-      ? Math.min(Math.max(0, Number(discount)), subtotal)
-      : 0;
-
     if (activeMode === 'mesas') {
-      setTables(prev => prev.map(t => t.id === selectedTableId ? { ...t, discount: safeDiscount } : t));
+      setTables(prev => prev.map(t => t.id === selectedTableId ? { ...t, discount } : t));
     } else {
-      setComandas(prev => prev.map(c => c.id === selectedComandaId ? { ...c, discount: safeDiscount } : c));
+      setComandas(prev => prev.map(c => c.id === selectedComandaId ? { ...c, discount } : c));
     }
-
-    syncAction('setDiscount', {
-      mode: activeMode,
-      targetId: activeMode === 'mesas' ? selectedTableId : selectedComandaId,
-      discount: safeDiscount
-    });
   };
 
   const sendOrderToKitchen = () => {
@@ -1101,11 +868,6 @@ export const FoodSystemProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       };
       setSyncQueue(prev => [newQueueItem, ...prev]);
     }
-
-    syncAction('sendOrderToKitchen', {
-      mode: activeMode,
-      targetId: activeMode === 'mesas' ? selectedTableId : selectedComandaId
-    });
   };
 
   const updateTableStatus = (tableId: number, status: TableStatus, seats?: number, waiter?: string) => {
@@ -1122,7 +884,6 @@ export const FoodSystemProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       };
     }));
     addToast('info', 'Status Atualizado', `Mesa alterada para ${status.toUpperCase()}`);
-    syncAction('updateTableStatus', { tableId, status, seats, waiter });
   };
 
   const transferTable = (fromId: number, toId: number) => {
@@ -1156,7 +917,6 @@ export const FoodSystemProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
     setSelectedTableId(toId);
     addToast('success', 'Mesa Transferida', `Itens da Mesa ${fromId} transferidos para Mesa ${toId}`);
-    syncAction('transferTable', { fromId, toId });
   };
 
   const openNewComanda = (name: string, waiter: string) => {
@@ -1176,7 +936,6 @@ export const FoodSystemProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     setComandas(prev => [newCmd, ...prev]);
     setSelectedComandaId(newCmd.id);
     addToast('success', 'Comanda Aberta', `${newCmd.number} para ${name}`);
-    syncAction('openComanda', { name, waiter });
   };
 
   // Payment confirmation & freeing up table
@@ -1268,17 +1027,6 @@ export const FoodSystemProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       setSyncQueue(prev => [queueTx, ...prev]);
     }
 
-    // O servidor recalcula subtotal, taxa e total a partir dos itens persistidos.
-    syncAction('processPayment', {
-      source: params.source,
-      paymentMethod: params.paymentMethod,
-      installments: params.installments,
-      splitPersons: params.splitPersons,
-      cashReceived: params.cashReceived,
-      operator: newTx.operator,
-      actor: newTx.waiter
-    });
-
     return newTx;
   };
 
@@ -1302,7 +1050,6 @@ export const FoodSystemProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     };
     setStockMovements(prev => [mov, ...prev]);
     addToast('success', 'Entrada Registrada', `+${qty} ${prod.unit} em ${prod.name}`);
-    syncAction('addStock', { productId, qty, reason });
   };
 
   const removeStock = (productId: string, qty: number, reason: string) => {
@@ -1324,7 +1071,6 @@ export const FoodSystemProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     };
     setStockMovements(prev => [mov, ...prev]);
     addToast('warning', 'Baixa de Estoque', `-${qty} ${prod.unit} em ${prod.name}`);
-    syncAction('removeStock', { productId, qty, reason });
   };
 
   const addNewProduct = (productData: Omit<Product, 'id'>) => {
@@ -1335,21 +1081,6 @@ export const FoodSystemProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     };
     setProducts(prev => [newProd, ...prev]);
     addToast('success', 'Novo Produto Criado', `${newProd.name} disponível no cardápio!`);
-    syncAction('addProduct', { product: productData });
-  };
-
-  const updateProductPrice = (productId: string, price: number) => {
-    if (!Number.isFinite(price) || price < 0) {
-      addToast('warning', 'Preço inválido', 'Informe um preço maior ou igual a zero.');
-      return;
-    }
-    const safePrice = Number(price.toFixed(2));
-    setProducts(prev => prev.map(product => product.id === productId
-      ? { ...product, price: safePrice }
-      : product
-    ));
-    addToast('success', 'Preço Atualizado', `Novo preço: R$ ${safePrice.toFixed(2)}.`);
-    syncAction('updateProductPrice', { productId, price: safePrice });
   };
 
   const openReceiptModal = (transaction?: Transaction, tableSummary?: any) => {
@@ -1434,46 +1165,22 @@ export const FoodSystemProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }, 1500);
   };
 
-  const cloudLogin = async (email: string, pass: string) => {
+  const cloudLogin = (email: string, pass: string) => {
     playFeedbackSound('click');
-    try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password: pass })
-      });
-      const payload = await response.json().catch(() => null);
-      if (!response.ok) {
-        addToast('error', 'Não foi possível entrar', payload?.error || 'Verifique suas credenciais.');
-        return false;
-      }
-
-      // Em hospedagem estática o servidor pode devolver o index.html com status 200.
-      if (!payload?.user?.email) {
-        addToast('error', 'API indisponível', 'Esta hospedagem não executa o servidor de autenticação do Sistema Food.');
-        return false;
-      }
-
-      setCloudUser(payload.user);
+    if (email && pass) {
+      setCloudUser({ email, name: 'Roberto Alencar (Dono / Administrador)' });
       setInterfaceMode('cloud_remote');
-      addToast('success', 'Acesso remoto concedido', 'Sessão autenticada pelo servidor.');
+      addToast('success', 'Acesso Remoto Concedido', 'Conectado à nuvem do Sistema Food.');
       return true;
-    } catch {
-      addToast('error', 'Servidor indisponível', 'Não foi possível conectar à API de autenticação.');
-      return false;
     }
+    addToast('error', 'Credenciais Inválidas', 'Preencha e-mail e senha.');
+    return false;
   };
 
-  const cloudLogout = async () => {
+  const cloudLogout = () => {
     playFeedbackSound('click');
-    try {
-      await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
-    } finally {
-      setCloudUser(null);
-      setInterfaceMode('tablet');
-      addToast('info', 'Sessão encerrada', 'Retornando ao terminal local do restaurante.');
-    }
+    setInterfaceMode('tablet');
+    addToast('info', 'Sessão Encerrada', 'Retornando ao terminal local do restaurante.');
   };
 
   const triggerWifiFlyAnimation = (message: string, from: string, to: string) => {
@@ -1524,7 +1231,6 @@ export const FoodSystemProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         addStock,
         removeStock,
         addNewProduct,
-        updateProductPrice,
         customerScreenStep,
         setCustomerScreenStep,
         customerSelectedTable,
@@ -1570,7 +1276,6 @@ export const FoodSystemProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         isRestartingServer,
         wifiTransmissionFeedback,
         cloudUser,
-        serverRevision,
         toggleLocalServerStatus,
         toggleInternetStatus,
         restartLocalServer,

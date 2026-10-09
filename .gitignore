@@ -1,17 +1,9 @@
 node_modules/
 build/
+dist/
 dist-electron/
 coverage/
 .DS_Store
 *.log
 .env*
 !.env.example
-
-# A pasta dist/ é versionada de propósito: a integração Git da Hostinger copia os
-# arquivos do repositório e não executa build. Assim a interface vai compilada.
-
-# Banco de dados local do servidor (nunca versionar dados de clientes)
-data/
-*.sqlite
-*.sqlite-shm
-*.sqlite-wal

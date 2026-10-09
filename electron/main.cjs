@@ -1,101 +1,7 @@
-const { app, BrowserWindow, Menu, shell, dialog } = require('electron');
-const crypto = require('crypto');
-const fs = require('fs');
+const { app, BrowserWindow, Menu, ipcMain, shell } = require('electron');
 const path = require('path');
-const { pathToFileURL } = require('url');
-
-const isElectronRuntime = Boolean(app) && typeof app.whenReady === 'function';
-const isDev = isElectronRuntime ? (process.env.NODE_ENV === 'development' || !app.isPackaged) : true;
 
 let mainWindow = null;
-let serverModule = null;
-let httpServer = null;
-let appOrigin = null;
-
-/** Escreve uma linha de registro na pasta de dados do usuário. */
-function logToFile(fileName, message) {
-  try {
-    const dir = app.getPath('userData');
-    fs.appendFileSync(path.join(dir, fileName), `[${new Date().toISOString()}] ${message}\n`, 'utf8');
-  } catch {
-    // Sem acesso ao disco: ignora o registro.
-  }
-}
-
-/** Registra falhas de inicialização em arquivo, facilitando o suporte. */
-function logFailure(scope, error) {
-  const message = `${scope}: ${error?.stack || error?.message || error}`;
-  logToFile('erros.log', message);
-  console.error(message);
-}
-
-/**
- * Verifica se já existe usuário cadastrado no banco local.
- * Se não for possível verificar, assume que existe para não sobrescrever dados.
- */
-function databaseHasUsers(dbPath) {
-  if (!fs.existsSync(dbPath)) return false;
-
-  try {
-    const { DatabaseSync } = require('node:sqlite');
-    const database = new DatabaseSync(dbPath, { readOnly: true });
-    try {
-      const row = database.prepare('SELECT COUNT(*) AS total FROM users').get();
-      return Number(row?.total || 0) > 0;
-    } finally {
-      database.close();
-    }
-  } catch {
-    return true;
-  }
-}
-
-/**
- * Inicia o servidor local embutido: API, estado compartilhado e arquivos da interface.
- * Se algo falhar, o aplicativo continua abrindo em modo local (sem servidor).
- */
-async function startEmbeddedServer() {
-  const dataDir = path.join(app.getPath('userData'), 'dados');
-  fs.mkdirSync(dataDir, { recursive: true });
-
-  const dbPath = path.join(dataDir, 'sistema-food.sqlite');
-  const serverEntry = path.join(__dirname, '..', 'server.js');
-  const distDir = path.join(__dirname, '..', 'dist');
-
-  if (!fs.existsSync(serverEntry) || !fs.existsSync(path.join(distDir, 'index.html'))) {
-    return { error: 'Arquivos do servidor não encontrados nesta instalação.' };
-  }
-
-  const precisaCriarAdmin = !databaseHasUsers(dbPath);
-
-  // As credenciais só são usadas quando ainda não há usuário cadastrado;
-  // caso contrário, o próprio servidor ignora os valores.
-  const senha = crypto.randomBytes(9).toString('base64url');
-  const credenciais = { email: 'dono@sistemafood.local', senha };
-  process.env.ADMIN_EMAIL = credenciais.email;
-  process.env.ADMIN_PASSWORD = senha;
-
-  process.env.NODE_ENV = 'production';
-  process.env.DB_PATH = dbPath;
-  process.env.DIST_PATH = distDir;
-  process.env.SESSION_COOKIE_SECURE = 'false';
-  process.env.TRUST_PROXY = 'false';
-
-  const loaded = await import(pathToFileURL(serverEntry).href);
-  const started = await loaded.startServer(0, '0.0.0.0');
-
-  serverModule = loaded;
-  httpServer = started.server;
-  appOrigin = `http://127.0.0.1:${started.port}`;
-
-  logToFile('inicializacao.log', `Servidor ativo em ${appOrigin} | banco: ${dbPath}`);
-
-  return {
-    url: appOrigin,
-    port: started.port,
-    credenciais: precisaCriarAdmin ? credenciais : null
-  };
-}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -105,7 +11,7 @@ function createWindow() {
     minHeight: 680,
     backgroundColor: '#070a12',
     title: 'Sistema Food — Bar & Restaurante',
-    icon: path.join(__dirname, '../public/icon.svg'),
+    icon: path.join(__dirname, '../public/icon.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       nodeIntegration: false,
@@ -117,6 +23,7 @@ function createWindow() {
     show: false
   });
 
+  // Custom App Menu
   const template = [
     {
       label: 'Sistema',
@@ -148,32 +55,17 @@ function createWindow() {
         { role: 'resetZoom', label: 'Zoom Padrão (100%)' },
         { role: 'zoomIn', label: 'Aumentar Zoom' },
         { role: 'zoomOut', label: 'Diminuir Zoom' },
-        ...(isDev ? [
-          { type: 'separator' },
-          { role: 'toggledevtools', label: 'Ferramentas de Desenvolvedor (F12)' }
-        ] : [])
+        { type: 'separator' },
+        { role: 'toggledevtools', label: 'Ferramentas de Desenvolvedor (F12)' }
       ]
     },
     {
       label: 'Ajuda',
       submenu: [
         {
-          label: 'Endereço para tablets e celulares',
-          click: () => {
-            dialog.showMessageBox(mainWindow, {
-              type: 'info',
-              title: 'Acesso pela rede local',
-              message: 'Endereço deste servidor na rede',
-              detail: appOrigin
-                ? `${appOrigin}\n\nNo tablet, abra este endereço no navegador.\nSe não abrir, libere a porta no firewall do Windows.`
-                : 'O servidor local não está ativo nesta execução. Reinicie o aplicativo.',
-              buttons: ['OK']
-            });
-          }
-        },
-        {
           label: 'Sobre o Sistema Food',
           click: () => {
+            const { dialog } = require('electron');
             dialog.showMessageBox(mainWindow, {
               type: 'info',
               title: 'Sistema Food — Bar & Restaurante',
@@ -187,14 +79,16 @@ function createWindow() {
     }
   ];
 
-  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+  const menu = Menu.buildFromTemplate(template);
+  Menu.setApplicationMenu(menu);
 
-  // Preferência: servir por HTTP para habilitar login, dados compartilhados e tablets.
-  if (appOrigin) {
-    mainWindow.loadURL(appOrigin);
-  } else if (isDev && process.env.VITE_DEV_SERVER_URL) {
+  // Check if running in development or production
+  const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
+
+  if (isDev && process.env.VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
   } else {
+    // In production, load the built index.html from dist
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
   }
 
@@ -202,19 +96,7 @@ function createWindow() {
     mainWindow.show();
   });
 
-  // Impede navegação para fora da aplicação.
-  mainWindow.webContents.on('will-navigate', (event, url) => {
-    const isLocalFile = url.startsWith('file://');
-    const isAppOrigin = appOrigin && url.startsWith(appOrigin);
-    const isDevServer = Boolean(isDev && process.env.VITE_DEV_SERVER_URL && url.startsWith(process.env.VITE_DEV_SERVER_URL));
-    if (isLocalFile || isAppOrigin || isDevServer) return;
-
-    event.preventDefault();
-    if (url.startsWith('http:') || url.startsWith('https:')) {
-      shell.openExternal(url);
-    }
-  });
-
+  // Handle external links safely
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith('http:') || url.startsWith('https:')) {
       shell.openExternal(url);
@@ -222,84 +104,49 @@ function createWindow() {
     return { action: 'deny' };
   });
 
-  // Sem servidor local: avisa o operador de forma explícita.
-  mainWindow.webContents.on('did-finish-load', () => {
-    if (!appOrigin) {
-      dialog.showMessageBox(mainWindow, {
-        type: 'warning',
-        title: 'Servidor local indisponível',
-        message: 'O sistema abriu em modo local.',
-        detail: 'Os dados ficarão apenas neste computador e o acesso remoto não funcionará.\nFeche e abra o aplicativo novamente.',
-        buttons: ['OK']
-      });
-    }
-  });
-
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
 }
 
-function stopEmbeddedServer() {
+// Safely verify if running inside Electron runtime (prevents crash when invoked in standard Node web servers)
+if (!app || typeof app.whenReady !== 'function') {
+  console.log('Sistema Food: Executando em ambiente Web Node.js na Hostinger. Inicializando servidor Express...');
   try {
-    httpServer?.close();
-  } catch {
-    // Servidor já encerrado.
-  }
-  try {
-    serverModule?.closeDatabase();
-  } catch {
-    // Banco já encerrado.
-  }
-  httpServer = null;
-  serverModule = null;
-}
+    const express = require('express');
+    const expressApp = express();
+    const PORT = process.env.PORT || 3000;
+    const distPath = path.join(__dirname, '../dist');
 
-if (!isElectronRuntime) {
-  console.log('Sistema Food: executando fora do Electron. Use "npm start" para o servidor web.');
+    expressApp.use(express.static(distPath));
+    expressApp.get('*', (req, res) => {
+      res.sendFile(path.join(distPath, 'index.html'));
+    });
+
+    expressApp.listen(PORT, () => {
+      console.log(`Sistema Food Web Server escutando na porta ${PORT}`);
+    });
+  } catch (err) {
+    console.error('Erro ao iniciar servidor Express:', err);
+  }
 } else {
-  process.on('uncaughtException', error => logFailure('uncaughtException', error));
-  process.on('unhandledRejection', reason => logFailure('unhandledRejection', reason));
-
-  app.whenReady().then(async () => {
-    let credenciais = null;
-
-    try {
-      const result = await startEmbeddedServer();
-      credenciais = result?.credenciais ?? null;
-      if (result?.error) {
-        logFailure('servidor embutido', result.error);
-      }
-    } catch (error) {
-      logFailure('falha ao iniciar o servidor embutido', error);
-    }
-
+  // When Electron has finished initialization
+  app.whenReady().then(() => {
     createWindow();
-
-    if (credenciais) {
-      dialog.showMessageBox(mainWindow, {
-        type: 'info',
-        title: 'Primeiro acesso criado',
-        message: 'Guarde estas credenciais de administrador',
-        detail: `E-mail: ${credenciais.email}\nSenha:  ${credenciais.senha}\n\nUse em "Nuvem / Acesso Remoto" no menu superior.\nA senha não será exibida novamente.`,
-        buttons: ['Entendi']
-      });
-    }
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) {
         createWindow();
       }
     });
-  }).catch(error => logFailure('app.whenReady', error));
+  });
 
+  // Quit when all windows are closed, except on macOS
   app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') {
       app.quit();
     }
   });
-
-  app.on('before-quit', () => {
-    stopEmbeddedServer();
-  });
 }
+
+

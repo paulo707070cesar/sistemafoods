@@ -74,18 +74,7 @@ npm run electron:dev
 
 ## 🌟 Recursos Exclusivos da Versão Desktop
 
-- **Servidor local embutido**: ao abrir, o aplicativo inicia automaticamente o servidor da API e do estado compartilhado, e carrega a interface por `http://127.0.0.1` em uma porta livre escolhida pelo sistema.
-- **Login real e dados compartilhados**: autenticação, mesas, comandas, estoque e caixa passam a ficar no banco SQLite do servidor, não mais isolados no navegador.
-- **Tablets e celulares na rede local**: o servidor escuta em `0.0.0.0`. Use o menu **Ajuda → Endereço para tablets e celulares** para ver o endereço e abrir no dispositivo.
-- **Modo Tela Cheia (Kiosk)**: pressione **F11** para preencher 100% da tela do monitor, transformando qualquer computador antigo em um terminal profissional de PDV ou monitor KDS de cozinha.
-- **Operação 100% Offline**: roda localmente sem conexão com a internet externa. Os pedidos, pagamentos e comandas comunicam-se pela rede local Wi-Fi com os tablets dos garçons e celulares dos clientes.
-- **Prevenção de Fechamento Acidental**: teclas de atalho seguras e janela otimizada para toque (Touchscreen).
-- **Sem Barra de Endereços do Navegador**: o operador de caixa ou garçom não consegue navegar em outros sites ou fechar abas por engano.
-
-## 🔑 Primeiro acesso e dados do servidor desktop
-
-- Na primeira execução, o aplicativo cria um usuário administrador e mostra **e-mail e senha em uma janela**. Guarde essas credenciais: a senha não é exibida novamente.
-- As credenciais são usadas em **Nuvem / Acesso Remoto**, no menu superior da interface.
-- O banco fica em `%APPDATA%\sistema-food-bar-restaurante\dados\sistema-food.sqlite`. Faça backup desse arquivo.
-- O servidor usa uma porta livre aleatória a cada execução. Se o Windows Firewall perguntar, autorize o acesso em **Redes privadas** para os tablets conseguirem conectar.
-- Se o servidor não conseguir iniciar, o aplicativo abre em **modo local** e avisa na tela; nesse caso os dados ficam apenas naquele computador.
+- **Modo Tela Cheia (Kiosk)**: Pressione **F11** para preencher 100% da tela do monitor, transformando qualquer computador antigo em um terminal profissional de PDV ou monitor KDS de cozinha.
+- **Operação 100% Offline**: Roda localmente sem conexão com a internet externa. Os pedidos, pagamentos e comandas comunicam-se pela rede local Wi-Fi com os tablets dos garçons e celulares dos clientes.
+- **Prevenção de Fechamento Acidental**: Teclas de atalho seguras e janela otimizada para toque (Touchscreen).
+- **Sem Barra de Endereços do Navegador**: O operador de caixa ou garçom não consegue navegar em outros sites ou fechar abas por engano.
