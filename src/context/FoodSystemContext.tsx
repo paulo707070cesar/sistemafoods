@@ -138,6 +138,7 @@ interface FoodSystemContextType {
   addStock: (productId: string, qty: number, reason: string) => void;
   removeStock: (productId: string, qty: number, reason: string) => void;
   addNewProduct: (productData: Omit<Product, 'id'>) => void;
+  updateProductPrice: (productId: string, price: number) => void;
 
   // Digital Menu & Customer Mobile Flow
   customerScreenStep: CustomerScreenStep;
@@ -220,6 +221,17 @@ interface FoodSystemContextType {
 
 const FoodSystemContext = createContext<FoodSystemContextType | undefined>(undefined);
 
+/** Lê do armazenamento local sem derrubar a aplicação quando o conteúdo está corrompido. */
+const readStored = <T,>(key: string, fallback: T): T => {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : fallback;
+  } catch {
+    localStorage.removeItem(key);
+    return fallback;
+  }
+};
+
 export const FoodSystemProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // User Role & Screen Access Control
   const [userRole, setUserRoleState] = useState<UserRole>(() => {
@@ -294,10 +306,9 @@ export const FoodSystemProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [lastCustomerOrderId, setLastCustomerOrderId] = useState<string | null>('d-ord-101');
 
   // Digital Orders state
-  const [digitalOrders, setDigitalOrders] = useState<DigitalOrder[]>(() => {
-    const saved = localStorage.getItem('sistema_food_digital_orders');
-    return saved ? JSON.parse(saved) : INITIAL_DIGITAL_ORDERS;
-  });
+  const [digitalOrders, setDigitalOrders] = useState<DigitalOrder[]>(() =>
+    readStored('sistema_food_digital_orders', INITIAL_DIGITAL_ORDERS)
+  );
 
   const [pendingDigitalOrderToReview, setPendingDigitalOrderToReview] = useState<DigitalOrder | null>(null);
 
@@ -305,25 +316,21 @@ export const FoodSystemProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [qrCodeModalOpen, setQrCodeModalOpen] = useState<boolean>(false);
   const [qrCodeModalTable, setQrCodeModalTable] = useState<string>('Mesa 05');
 
-  const [tables, setTables] = useState<Table[]>(() => {
-    const saved = localStorage.getItem('sistema_food_tables');
-    return saved ? JSON.parse(saved) : INITIAL_TABLES;
-  });
+  const [tables, setTables] = useState<Table[]>(() =>
+    readStored('sistema_food_tables', INITIAL_TABLES)
+  );
 
-  const [comandas, setComandas] = useState<Comanda[]>(() => {
-    const saved = localStorage.getItem('sistema_food_comandas');
-    return saved ? JSON.parse(saved) : INITIAL_COMANDAS;
-  });
+  const [comandas, setComandas] = useState<Comanda[]>(() =>
+    readStored('sistema_food_comandas', INITIAL_COMANDAS)
+  );
 
-  const [products, setProducts] = useState<Product[]>(() => {
-    const saved = localStorage.getItem('sistema_food_products');
-    return saved ? JSON.parse(saved) : INITIAL_PRODUCTS;
-  });
+  const [products, setProducts] = useState<Product[]>(() =>
+    readStored('sistema_food_products', INITIAL_PRODUCTS)
+  );
 
-  const [transactions, setTransactions] = useState<Transaction[]>(() => {
-    const saved = localStorage.getItem('sistema_food_transactions');
-    return saved ? JSON.parse(saved) : INITIAL_TRANSACTIONS;
-  });
+  const [transactions, setTransactions] = useState<Transaction[]>(() =>
+    readStored('sistema_food_transactions', INITIAL_TRANSACTIONS)
+  );
 
   const [stockMovements, setStockMovements] = useState<StockMovement[]>([]);
 
@@ -426,6 +433,19 @@ export const FoodSystemProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   // Customer Cart operations
   const addToCustomerCart = (product: Product, qty: number = 1, obs?: string) => {
     playFeedbackSound('click');
+    if (!Number.isInteger(qty) || qty <= 0) {
+      addToast('warning', 'Quantidade inválida', 'Informe uma quantidade inteira maior que zero.');
+      return;
+    }
+
+    const alreadyInCart = customerCart
+      .filter(item => item.productId === product.id)
+      .reduce((sum, item) => sum + item.qty, 0);
+    if (alreadyInCart + qty > product.currentStock) {
+      addToast('warning', 'Estoque insuficiente', `${product.name} possui apenas ${product.currentStock} ${product.unit} disponíveis.`);
+      return;
+    }
+
     const existing = customerCart.find(i => i.productId === product.id && (!obs || i.observation === obs));
     if (existing && !obs) {
       setCustomerCart(prev => prev.map(item => {
@@ -532,6 +552,31 @@ export const FoodSystemProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     const order = digitalOrders.find(o => o.id === orderId);
     if (!order) return;
 
+    // Confere o estoque antes de aceitar: sem isso o pedido entraria sem baixa de insumos.
+    const requestedByProduct = new Map<string, number>();
+    order.items.forEach(item => {
+      requestedByProduct.set(item.productId, (requestedByProduct.get(item.productId) || 0) + item.qty);
+    });
+    const unavailable = [...requestedByProduct.entries()].find(([productId, qty]) => {
+      const product = products.find(p => p.id === productId);
+      return !product || product.currentStock < qty;
+    });
+    if (unavailable) {
+      const product = products.find(p => p.id === unavailable[0]);
+      setDigitalOrders(prev => prev.map(o => o.id === orderId
+        ? { ...o, status: 'recusado', rejectionReason: `Estoque insuficiente: ${product?.name || 'produto indisponível'}` }
+        : o
+      ));
+      setPendingDigitalOrderToReview(null);
+      addToast('error', 'Pedido não aceito', `Estoque insuficiente para ${product?.name || 'um dos itens'}.`);
+      return;
+    }
+
+    setProducts(prev => prev.map(product => {
+      const qty = requestedByProduct.get(product.id) || 0;
+      return qty > 0 ? { ...product, currentStock: product.currentStock - qty } : product;
+    }));
+
     // Update status to 'preparo'
     setDigitalOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'preparo' } : o));
 
@@ -594,6 +639,15 @@ export const FoodSystemProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   // Add Item to Order
   const addItemToActiveOrder = (product: Product, qty: number = 1, observation?: string) => {
     playFeedbackSound('click');
+    if (!Number.isInteger(qty) || qty <= 0) {
+      addToast('warning', 'Quantidade inválida', 'Informe uma quantidade inteira maior que zero.');
+      return;
+    }
+    if (product.currentStock < qty) {
+      addToast('warning', 'Estoque insuficiente', `${product.name} possui apenas ${product.currentStock} ${product.unit} disponíveis.`);
+      return;
+    }
+
     const now = new Date();
     const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
@@ -638,13 +692,6 @@ export const FoodSystemProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       }));
 
       // Update local product stock
-      setProducts(prev => prev.map(p => {
-        if (p.id === product.id) {
-          return { ...p, currentStock: Math.max(0, p.currentStock - qty) };
-        }
-        return p;
-      }));
-
       addToast('success', `${product.name} Adicionado`, `Qtd: ${qty} - Total: R$ ${(product.price * qty).toFixed(2)}`);
     } else {
       // Comandas mode
@@ -669,73 +716,85 @@ export const FoodSystemProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       }));
       addToast('success', `${product.name} Adicionado`, `Comanda ${activeComanda?.number}`);
     }
+
+    // A baixa de estoque fica fora do atualizador de estado para não ser executada duas vezes.
+    setProducts(prev => prev.map(p => p.id === product.id
+      ? { ...p, currentStock: Math.max(0, p.currentStock - qty) }
+      : p
+    ));
   };
 
   const removeItemFromActiveOrder = (itemId: string) => {
     playFeedbackSound('alert');
+    const activeItems = activeMode === 'mesas' ? activeTable.items : (activeComanda?.items || []);
+    const itemToRemove = activeItems.find(item => item.id === itemId);
+    if (!itemToRemove) return;
+
+    setProducts(prev => prev.map(product => product.id === itemToRemove.productId
+      ? { ...product, currentStock: product.currentStock + itemToRemove.qty }
+      : product
+    ));
+
     if (activeMode === 'mesas') {
-      setTables(prev => prev.map(t => {
-        if (t.id !== selectedTableId) return t;
-        const itemToRemove = t.items.find(i => i.id === itemId);
-        if (itemToRemove) {
-          setProducts(prods => prods.map(p => p.id === itemToRemove.productId ? { ...p, currentStock: p.currentStock + itemToRemove.qty } : p));
-        }
-        return {
-          ...t,
-          items: t.items.filter(i => i.id !== itemId)
-        };
-      }));
-      addToast('info', 'Item Cancelado', 'Item removido da comanda atual.');
+      setTables(prev => prev.map(t => t.id === selectedTableId
+        ? { ...t, items: t.items.filter(i => i.id !== itemId) }
+        : t
+      ));
     } else {
-      setComandas(prev => prev.map(c => {
-        if (c.id !== selectedComandaId) return c;
-        return { ...c, items: c.items.filter(i => i.id !== itemId) };
-      }));
+      setComandas(prev => prev.map(c => c.id === selectedComandaId
+        ? { ...c, items: c.items.filter(i => i.id !== itemId) }
+        : c
+      ));
     }
+    addToast('info', 'Item Cancelado', 'Item removido da comanda atual e devolvido ao estoque.');
   };
 
   const updateItemQty = (itemId: string, delta: number) => {
     playFeedbackSound('click');
+    if (!Number.isInteger(delta) || delta === 0) return;
+
+    const activeItems = activeMode === 'mesas' ? activeTable.items : (activeComanda?.items || []);
+    const target = activeItems.find(item => item.id === itemId);
+    if (!target) return;
+
+    const nextQty = target.qty + delta;
+    const effectiveDelta = nextQty <= 0 ? -target.qty : delta;
+    const product = products.find(item => item.id === target.productId);
+
+    if (effectiveDelta > 0 && (!product || product.currentStock < effectiveDelta)) {
+      addToast('warning', 'Estoque insuficiente', `Não há estoque suficiente para aumentar ${target.name}.`);
+      return;
+    }
+
+    setProducts(prev => prev.map(item => item.id === target.productId
+      ? { ...item, currentStock: Math.max(0, item.currentStock - effectiveDelta) }
+      : item
+    ));
+
     if (activeMode === 'mesas') {
-      setTables(prev => prev.map(t => {
-        if (t.id !== selectedTableId) return t;
-        const target = t.items.find(i => i.id === itemId);
-        if (!target) return t;
-
-        const nextQty = target.qty + delta;
-        if (nextQty <= 0) {
-          return {
-            ...t,
-            items: t.items.filter(i => i.id !== itemId)
-          };
-        }
-
+      setTables(prev => prev.map(table => {
+        if (table.id !== selectedTableId) return table;
         return {
-          ...t,
-          items: t.items.map(item => {
-            if (item.id === itemId) {
-              return {
-                ...item,
-                qty: nextQty,
-                total: Number((nextQty * item.price).toFixed(2))
-              };
-            }
-            return item;
-          })
+          ...table,
+          items: nextQty <= 0
+            ? table.items.filter(item => item.id !== itemId)
+            : table.items.map(item => item.id === itemId
+              ? { ...item, qty: nextQty, total: Number((nextQty * item.price).toFixed(2)) }
+              : item
+            )
         };
       }));
     } else {
-      setComandas(prev => prev.map(c => {
-        if (c.id !== selectedComandaId) return c;
+      setComandas(prev => prev.map(comanda => {
+        if (comanda.id !== selectedComandaId) return comanda;
         return {
-          ...c,
-          items: c.items.map(i => {
-            if (i.id === itemId) {
-              const nq = Math.max(1, i.qty + delta);
-              return { ...i, qty: nq, total: Number((nq * i.price).toFixed(2)) };
-            }
-            return i;
-          })
+          ...comanda,
+          items: nextQty <= 0
+            ? comanda.items.filter(item => item.id !== itemId)
+            : comanda.items.map(item => item.id === itemId
+              ? { ...item, qty: nextQty, total: Number((nextQty * item.price).toFixed(2)) }
+              : item
+            )
         };
       }));
     }
@@ -789,10 +848,17 @@ export const FoodSystemProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   };
 
   const setActiveDiscount = (discount: number) => {
+    // O desconto nunca pode ultrapassar o subtotal do pedido.
+    const subtotal = (activeMode === 'mesas' ? activeTable.items : (activeComanda?.items || []))
+      .reduce((sum, item) => sum + item.total, 0);
+    const safeDiscount = Number.isFinite(discount)
+      ? Math.min(Math.max(0, Number(discount)), subtotal)
+      : 0;
+
     if (activeMode === 'mesas') {
-      setTables(prev => prev.map(t => t.id === selectedTableId ? { ...t, discount } : t));
+      setTables(prev => prev.map(t => t.id === selectedTableId ? { ...t, discount: safeDiscount } : t));
     } else {
-      setComandas(prev => prev.map(c => c.id === selectedComandaId ? { ...c, discount } : c));
+      setComandas(prev => prev.map(c => c.id === selectedComandaId ? { ...c, discount: safeDiscount } : c));
     }
   };
 
@@ -1083,6 +1149,20 @@ export const FoodSystemProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     addToast('success', 'Novo Produto Criado', `${newProd.name} disponível no cardápio!`);
   };
 
+  const updateProductPrice = (productId: string, price: number) => {
+    if (!Number.isFinite(price) || price < 0) {
+      addToast('warning', 'Preço inválido', 'Informe um preço maior ou igual a zero.');
+      return;
+    }
+    // Atualiza o estado global: alterar o objeto do produto direto não refletiria na tela.
+    const safePrice = Number(price.toFixed(2));
+    setProducts(prev => prev.map(product => product.id === productId
+      ? { ...product, price: safePrice }
+      : product
+    ));
+    addToast('success', 'Preço Atualizado', `Novo preço: R$ ${safePrice.toFixed(2)}.`);
+  };
+
   const openReceiptModal = (transaction?: Transaction, tableSummary?: any) => {
     playFeedbackSound('click');
     setReceiptModalData({
@@ -1231,6 +1311,7 @@ export const FoodSystemProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         addStock,
         removeStock,
         addNewProduct,
+        updateProductPrice,
         customerScreenStep,
         setCustomerScreenStep,
         customerSelectedTable,
