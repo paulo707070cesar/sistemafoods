@@ -6,7 +6,6 @@ import {
   Mail, 
   ArrowRight, 
   Tablet, 
-  Sparkles, 
   ShieldCheck, 
   CheckCircle2,
   KeyRound
@@ -16,27 +15,15 @@ import { useFoodSystem } from '../../context/FoodSystemContext';
 export const CloudLoginScreen: React.FC = () => {
   const { cloudLogin, setInterfaceMode, playFeedbackSound, addToast } = useFoodSystem();
 
-  const [email, setEmail] = useState('dono@sistemafood.com.br');
-  const [password, setPassword] = useState('••••••••••••');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      cloudLogin(email, password);
-    }, 800);
-  };
-
-  const handleQuickDemoLogin = () => {
-    setEmail('dono@sistemafood.com.br');
-    setPassword('senha123');
-    setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      cloudLogin('dono@sistemafood.com.br', 'senha123');
-    }, 600);
+    await cloudLogin(email, password);
+    setIsLoading(false);
   };
 
   return (
@@ -134,19 +121,10 @@ export const CloudLoginScreen: React.FC = () => {
           </button>
         </form>
 
-        {/* Quick Demo Access */}
-        <div className="mt-5 pt-4 border-t border-slate-800 text-center space-y-2">
-          <button
-            onClick={handleQuickDemoLogin}
-            className="w-full py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-orange-400" />
-            <span>Acesso Rápido de Demonstração (Dono)</span>
-          </button>
-
+        <div className="mt-5 pt-4 border-t border-slate-800 text-center">
           <div className="flex items-center justify-center gap-1.5 text-[11px] text-slate-500">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Criptografia ponta a ponta com o servidor local</span>
+            <span>Autenticação protegida pelo servidor</span>
           </div>
         </div>
       </div>

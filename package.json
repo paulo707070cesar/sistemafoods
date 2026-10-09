@@ -2,15 +2,22 @@
   "name": "sistema-food-bar-restaurante",
   "private": true,
   "version": "2.5.0",
+  "engines": {
+    "node": ">=22.5.0"
+  },
   "main": "server.js",
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "dev": "vite --port=3000 --host=0.0.0.0",
+    "dev": "vite --port=3000 --host=127.0.0.1",
+    "dev:lan": "vite --port=3000 --host=0.0.0.0",
     "build": "vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist dist-electron",
     "lint": "tsc --noEmit",
+    "test:api": "node scripts/smoke-api.mjs",
+    "test:state": "node scripts/smoke-state.mjs",
+    "test:sync": "node scripts/smoke-sync.mjs",
     "electron:dev": "electron electron/main.cjs",
     "electron:build": "vite build && electron-builder",
     "dist:win": "vite build && electron-builder --win nsis",
@@ -26,11 +33,17 @@
     "directories": {
       "output": "dist-electron"
     },
+    "asar": false,
     "files": [
       "dist/**/*",
       "electron/**/*",
+      "public/**/*",
+      "server.js",
+      "server/**/*",
+      "shared/**/*",
       "package.json"
     ],
+    "extraResources": [],
     "win": {
       "target": [
         "nsis",

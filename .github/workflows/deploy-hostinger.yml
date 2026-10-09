@@ -1,5 +1,10 @@
 name: Deploy para Hostinger via GitHub
 
+# Publica apenas a interface estática (dist/) na hospedagem compartilhada.
+# A API Node (server.js + server/ + shared/) NÃO é enviada por FTP e precisa de
+# hospedagem com suporte a Node.js (VPS, Cloud ou Node.js no hPanel).
+# Sem a API, o aplicativo funciona em modo local e o Acesso Remoto fica indisponível.
+
 on:
   push:
     branches:
@@ -14,10 +19,10 @@ jobs:
       - name: 📥 Clonar Repositório
         uses: actions/checkout@v4
 
-      - name: ⚙️ Configurar Node.js 20
+      - name: ⚙️ Configurar Node.js 22
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: 'npm'
 
       - name: 📦 Instalar Dependências

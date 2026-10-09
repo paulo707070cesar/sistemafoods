@@ -17,6 +17,10 @@
   RewriteCond %{REQUEST_FILENAME} -d
   RewriteRule ^ - [L]
 
+  # /api é servido pelo servidor Node. Em hospedagem estática deve retornar 404,
+  # e não o index.html, para o aplicativo detectar corretamente a ausência da API.
+  RewriteRule ^api(/|$) - [R=404,L]
+
   # Caso contrário, redireciona qualquer requisição interna para o index.html (SPA)
   RewriteRule ^ index.html [L]
 </IfModule>
@@ -71,9 +75,14 @@
 # Cabeçalhos de Segurança HTTP
 # ----------------------------------------------------------------------
 <IfModule mod_headers.c>
-  Header set X-Content-Type-Options "nosniff"
-  Header set X-XSS-Protection "1; mode=block"
-  Header always set Referrer-Policy "no-referrer-when-downgrade"
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set X-Frame-Options "DENY"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+  Header always set Content-Security-Policy "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https: wss:; object-src 'none'"
+
+  # HSTS só deve ser usado depois de confirmar que todo o domínio funciona em HTTPS.
+  Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains" "expr=%{HTTPS} == 'on'"
 </IfModule>
 
 # Desativar listagem de diretórios
