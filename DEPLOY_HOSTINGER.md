@@ -34,6 +34,31 @@ O servidor é obrigatório para login, dados compartilhados entre terminais e si
 
 ## Caminho A — VPS ou Cloud com SSH (recomendado)
 
+> ⚠️ **Importante:** a branch em produção é `feat/backend-vps`, **não** a `main`.
+> A `main` é publicada automaticamente pela Hostinger e serve apenas a interface estática.
+> O backend fica na branch até estar validado.
+
+### Instalação em um comando
+
+Conectado à VPS por SSH:
+
+```bash
+sudo apt-get update && sudo apt-get install -y git
+git clone --branch feat/backend-vps https://github.com/paulo707070cesar/sistemafoods.git /tmp/sistema-food
+sudo bash /tmp/sistema-food/deploy/instalar-vps.sh
+```
+
+O instalador faz tudo: instala o Node.js 22, cria usuário e pastas, baixa o código, compila a interface, gera as credenciais do administrador, registra o serviço systemd e valida a API. É idempotente — rode de novo para atualizar.
+
+Com domínio e HTTPS:
+
+```bash
+sudo bash /tmp/sistema-food/deploy/instalar-vps.sh seudominio.com.br
+sudo certbot --nginx -d seudominio.com.br
+```
+
+### Instalação manual (passo a passo)
+
 ```bash
 # 1. Node.js 22
 curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
@@ -44,8 +69,8 @@ sudo useradd --system --create-home --shell /usr/sbin/nologin sistemafood
 sudo mkdir -p /opt/sistema-food /var/lib/sistema-food /etc/sistema-food
 sudo chown -R sistemafood:sistemafood /opt/sistema-food /var/lib/sistema-food
 
-# 3. Código
-sudo -u sistemafood git clone https://github.com/paulo707070cesar/sistemafoods.git /opt/sistema-food
+# 3. Código (branch do backend)
+sudo -u sistemafood git clone --branch feat/backend-vps https://github.com/paulo707070cesar/sistemafoods.git /opt/sistema-food
 cd /opt/sistema-food
 
 # 4. Dependências e build
