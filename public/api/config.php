@@ -1,4 +1,5 @@
 <?php
+header('Content-Type: application/json; charset=utf-8');
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
@@ -19,11 +20,12 @@ try {
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         PDO::ATTR_EMULATE_PREPARES => false,
     ]);
-} catch (PDOException $e) {
+} catch (Throwable $e) {
+    error_log('Sistema Food database connection error: ' . $e->getMessage());
     http_response_code(500);
     echo json_encode([
         'status' => 'error',
-        'message' => 'Falha ao conectar com o banco de dados na Hostinger: ' . $e->getMessage()
+        'message' => 'Falha ao conectar com o banco de dados. Consulte o log de erros da hospedagem.'
     ], JSON_UNESCAPED_UNICODE);
     exit();
 }

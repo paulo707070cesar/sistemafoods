@@ -43,5 +43,5 @@ jobs:
           username: ${{ secrets.HOSTINGER_FTP_USERNAME }}
           password: ${{ secrets.HOSTINGER_FTP_PASSWORD }}
           local-dir: ./dist/
-          server-dir: ./public_html/sistemafoods/
+          server-dir: ./public_html/
           dangerous-clean-slate: false
