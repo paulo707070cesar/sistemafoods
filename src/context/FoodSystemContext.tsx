@@ -32,6 +32,7 @@ import {
   INITIAL_SYNC_QUEUE
 } from '../data/mockData';
 import { syncWithHostinger, fetchFromHostinger } from '../services/apiSync';
+import { getSession, login as loginWithApi, logout as logoutFromApi, register as registerWithApi } from '../services/auth';
 
 
 export const USER_ROLES_CONFIG: Record<UserRole, UserRoleConfig> = {
@@ -226,7 +227,8 @@ interface FoodSystemContextType {
   restartLocalServer: () => void;
   triggerSyncNow: () => void;
   retrySyncQueue: () => void;
-  cloudLogin: (email: string, pass: string) => boolean;
+  cloudLogin: (email: string, pass: string) => Promise<boolean>;
+  cloudRegister: (name: string, email: string, pass: string, restaurantName: string, restaurantCity: string) => Promise<boolean>;
   cloudLogout: () => void;
   triggerWifiFlyAnimation: (message: string, from: string, to: string) => void;
 }
@@ -367,10 +369,7 @@ export const FoodSystemProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     from: string;
     to: string;
   } | null>(null);
-  const [cloudUser, setCloudUser] = useState<{ email: string; name: string } | null>({
-    email: 'dono@sistemafood.com.br',
-    name: 'Roberto Alencar (Dono / Administrador)'
-  });
+  const [cloudUser, setCloudUser] = useState<{ email: string; name: string } | null>(null);
   
   // Default selected Table 5 as shown in reference
   const [selectedTableId, setSelectedTableId] = useState<number>(5);
@@ -424,6 +423,26 @@ export const FoodSystemProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     transaction?: Transaction;
     tableSummary?: any;
   }>({ isOpen: false });
+
+  const applyAuthenticatedSession = (session: Awaited<ReturnType<typeof loginWithApi>>) => {
+    const authenticatedRestaurants = session.restaurants.map(({ role, ...restaurant }, index) => ({
+      ...restaurant,
+      createdAt: restaurant.createdAt || new Date().toISOString(),
+      active: index === 0
+    }));
+    setCloudUser({ email: session.user.email, name: session.user.name });
+    setRestaurants(authenticatedRestaurants);
+    setActiveRestaurantId(authenticatedRestaurants[0]?.id || '');
+    setUserRoleState(session.restaurants[0]?.role || 'gerente');
+  };
+
+  useEffect(() => {
+    getSession()
+      .then(session => {
+        if (session) applyAuthenticatedSession(session);
+      })
+      .catch(() => undefined);
+  }, []);
 
   // Persistence
   useEffect(() => {
@@ -1389,20 +1408,38 @@ export const FoodSystemProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }, 1500);
   };
 
-  const cloudLogin = (email: string, pass: string) => {
+  const cloudLogin = async (email: string, pass: string) => {
     playFeedbackSound('click');
-    if (email && pass) {
-      setCloudUser({ email, name: 'Roberto Alencar (Dono / Administrador)' });
+    try {
+      const session = await loginWithApi(email, pass);
+      applyAuthenticatedSession(session);
       setInterfaceMode('cloud_remote');
       addToast('success', 'Acesso Remoto Concedido', 'Conectado à nuvem do Sistema Food.');
       return true;
+    } catch (error) {
+      addToast('error', 'Acesso negado', error instanceof Error ? error.message : 'Não foi possível entrar.');
+      return false;
     }
-    addToast('error', 'Credenciais Inválidas', 'Preencha e-mail e senha.');
-    return false;
+  };
+
+  const cloudRegister = async (name: string, email: string, pass: string, restaurantName: string, restaurantCity: string) => {
+    playFeedbackSound('click');
+    try {
+      const session = await registerWithApi(name, email, pass, restaurantName, restaurantCity);
+      applyAuthenticatedSession(session);
+      setInterfaceMode('cloud_remote');
+      addToast('success', 'Conta criada', 'Restaurante cadastrado com segurança.');
+      return true;
+    } catch (error) {
+      addToast('error', 'Cadastro não concluído', error instanceof Error ? error.message : 'Não foi possível criar a conta.');
+      return false;
+    }
   };
 
   const cloudLogout = () => {
     playFeedbackSound('click');
+    logoutFromApi().catch(() => undefined);
+    setCloudUser(null);
     setInterfaceMode('tablet');
     addToast('info', 'Sessão Encerrada', 'Retornando ao terminal local do restaurante.');
   };
@@ -1513,6 +1550,7 @@ export const FoodSystemProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         triggerSyncNow,
         retrySyncQueue,
         cloudLogin,
+        cloudRegister,
         cloudLogout,
         triggerWifiFlyAnimation
       }}

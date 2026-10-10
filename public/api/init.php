@@ -14,7 +14,7 @@ try {
     echo json_encode([
         'status' => 'success',
         'message' => 'Tabelas criadas/verificadas com sucesso no banco u940098558_sistemafoods!',
-        'tables' => ['food_restaurants', 'food_state', 'food_transactions', 'food_orders']
+        'tables' => ['food_restaurants', 'food_users', 'food_restaurant_memberships', 'food_state', 'food_transactions', 'food_orders']
     ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
 } catch (Exception $e) {
     http_response_code(500);

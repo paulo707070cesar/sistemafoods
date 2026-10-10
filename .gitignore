@@ -13,3 +13,6 @@ data/
 *.sqlite
 *.sqlite-shm
 *.sqlite-wal
+
+# Credenciais do banco da produção (criar manualmente na Hostinger)
+public/api/config.local.php

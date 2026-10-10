@@ -10,6 +10,24 @@ CREATE TABLE IF NOT EXISTS food_restaurants (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS food_users (
+    id CHAR(32) PRIMARY KEY,
+    name VARCHAR(120) NOT NULL,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS food_restaurant_memberships (
+    restaurant_id VARCHAR(64) NOT NULL,
+    user_id CHAR(32) NOT NULL,
+    role ENUM('gerente', 'garcom', 'cozinha', 'caixa') NOT NULL DEFAULT 'gerente',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (restaurant_id, user_id),
+    CONSTRAINT fk_food_membership_restaurant FOREIGN KEY (restaurant_id) REFERENCES food_restaurants(id) ON DELETE CASCADE,
+    CONSTRAINT fk_food_membership_user FOREIGN KEY (user_id) REFERENCES food_users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS food_state (
     restaurant_id VARCHAR(64) NOT NULL,
     data_key VARCHAR(64) NOT NULL,

@@ -4,9 +4,11 @@ require_once __DIR__ . '/config.php';
 header('Content-Type: application/json; charset=utf-8');
 
 $method = $_SERVER['REQUEST_METHOD'];
+$userId = requireAuthenticatedUser();
 
 if ($method === 'GET') {
     $restaurant_id = isset($_GET['restaurant_id']) ? trim($_GET['restaurant_id']) : 'rest-demo';
+    requireRestaurantMembership($pdo, $userId, $restaurant_id);
 
     try {
         $stmt = $pdo->prepare("SELECT data_key, data_json, updated_at FROM food_state WHERE restaurant_id = ?");
@@ -42,6 +44,7 @@ if ($method === 'POST') {
     }
 
     $restaurant_id = trim($payload['restaurant_id']);
+    requireRestaurantMembership($pdo, $userId, $restaurant_id);
 
     try {
         $pdo->beginTransaction();

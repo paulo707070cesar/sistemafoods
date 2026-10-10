@@ -9,10 +9,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit();
 }
 
-$db_host = 'localhost';
-$db_name = 'u940098558_sistemafoods';
-$db_user = 'u940098558_sistemafoods';
-$db_pass = 'pT4>Se817U7W';
+session_name('sistema_food_session');
+session_set_cookie_params([
+    'httponly' => true,
+    'samesite' => 'Lax',
+    'secure' => (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+]);
+session_start();
+
+$localConfigPath = __DIR__ . '/config.local.php';
+if (!is_file($localConfigPath)) {
+    respondJson(['status' => 'error', 'message' => 'Configuração do banco não encontrada.'], 500);
+}
+
+$databaseConfig = require $localConfigPath;
+$db_host = $databaseConfig['host'] ?? '';
+$db_name = $databaseConfig['name'] ?? '';
+$db_user = $databaseConfig['user'] ?? '';
+$db_pass = $databaseConfig['password'] ?? '';
+
+if ($db_host === '' || $db_name === '' || $db_user === '' || $db_pass === '') {
+    respondJson(['status' => 'error', 'message' => 'Configuração do banco está incompleta.'], 500);
+}
 
 try {
     $pdo = new PDO("mysql:host=$db_host;dbname=$db_name;charset=utf8mb4", $db_user, $db_pass, [
@@ -28,4 +46,32 @@ try {
         'message' => 'Falha ao conectar com o banco de dados. Consulte o log de erros da hospedagem.'
     ], JSON_UNESCAPED_UNICODE);
     exit();
+}
+
+function respondJson(array $payload, int $status = 200): void {
+    http_response_code($status);
+    echo json_encode($payload, JSON_UNESCAPED_UNICODE);
+    exit();
+}
+
+function currentUserId(): ?string {
+    return isset($_SESSION['user_id']) && is_string($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
+}
+
+function requireAuthenticatedUser(): string {
+    $userId = currentUserId();
+    if (!$userId) {
+        respondJson(['status' => 'error', 'message' => 'Autenticação obrigatória.'], 401);
+    }
+    return $userId;
+}
+
+function requireRestaurantMembership(PDO $pdo, string $userId, string $restaurantId): string {
+    $stmt = $pdo->prepare('SELECT role FROM food_restaurant_memberships WHERE restaurant_id = ? AND user_id = ?');
+    $stmt->execute([$restaurantId, $userId]);
+    $role = $stmt->fetchColumn();
+    if (!$role) {
+        respondJson(['status' => 'error', 'message' => 'Acesso não autorizado para este restaurante.'], 403);
+    }
+    return $role;
 }
