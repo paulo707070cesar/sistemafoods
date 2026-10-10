@@ -102,7 +102,54 @@ export interface StockMovement {
   operator: string;
 }
 
-export type ActiveScreen = 'pdv' | 'mesas' | 'caixa' | 'estoque' | 'kds' | 'fichas' | 'dashboard' | 'rede' | 'sync_queue' | 'instrucoes';
+
+export interface Restaurant {
+  id: string;
+  name: string;
+  legalName?: string;
+  document?: string;
+  city?: string;
+  logoUrl?: string;
+  createdAt: string;
+  active: boolean;
+}
+export type ActiveScreen = 'pdv' | 'mesas' | 'caixa' | 'estoque' | 'kds' | 'fichas' | 'dashboard' | 'rede' | 'sync_queue' | 'config_pagamentos' | 'instrucoes';
+
+/** Tipo da chave PIX conforme o Banco Central. */
+export type PixKeyType = 'cpf' | 'cnpj' | 'email' | 'telefone' | 'aleatoria';
+
+export interface PixSettings {
+  enabled: boolean;
+  keyType: PixKeyType;
+  key: string;
+  /** Nome do recebedor exibido no aplicativo do banco (máximo 25 caracteres). */
+  merchantName: string;
+  /** Cidade do recebedor (máximo 15 caracteres). */
+  merchantCity: string;
+  /** Acréscimo percentual cobrado do cliente ao pagar com PIX. */
+  surchargePercent: number;
+}
+
+export interface MercadoPagoSettings {
+  enabled: boolean;
+  environment: 'sandbox' | 'producao';
+  publicKey: string;
+  /** Credencial secreta. Nunca deve ser exibida nem enviada a outros terminais. */
+  accessToken: string;
+  /** Número máximo de parcelas oferecidas no cartão de crédito. */
+  maxInstallments: number;
+  /** Acréscimo percentual cobrado do cliente ao pagar com cartão. */
+  surchargePercent: number;
+}
+
+export interface PaymentSettings {
+  pix: PixSettings;
+  mercadoPago: MercadoPagoSettings;
+  updatedAt?: string;
+}
+
+/** Estado de configuração de cada meio de pagamento, usado pela interface. */
+export type PaymentChannelStatus = 'nao_configurado' | 'incompleto' | 'pronto';
 
 export type UserRole = 'gerente' | 'garcom' | 'cozinha' | 'caixa';
 

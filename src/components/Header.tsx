@@ -23,6 +23,7 @@ import {
   UserCheck,
   Flame,
   Wallet,
+  CreditCard,
   ChevronDown,
   ChevronLeft,
   ChevronRight
@@ -30,6 +31,7 @@ import {
 import { useFoodSystem, USER_ROLES_CONFIG } from '../context/FoodSystemContext';
 import { ActiveScreen, UserRole } from '../types';
 import { ConnectionStatusBadge } from './Network/ConnectionStatusBadge';
+import { RestaurantSwitcher } from './RestaurantSwitcher';
 
 export const Header: React.FC = () => {
   const { 
@@ -102,6 +104,7 @@ export const Header: React.FC = () => {
     { id: 'rede', label: '8. Rede', icon: <Radio className="w-4 h-4" />, category: 'sistema' },
     { id: 'sync_queue', label: '9. Fila Sync', icon: <Layers className="w-4 h-4" />, category: 'sistema' },
     { id: 'instrucoes', label: '10. Ajuda', icon: <BookOpen className="w-4 h-4" />, category: 'sistema' },
+    { id: 'config_pagamentos', label: '11. Pagamentos', icon: <CreditCard className="w-4 h-4" />, category: 'sistema' },
   ];
 
   // Filter items based on active role
@@ -169,6 +172,8 @@ export const Header: React.FC = () => {
             </div>
           </div>
         </div>
+
+        <RestaurantSwitcher />
 
         {/* Cargo Selector Pill */}
         <div className="relative">

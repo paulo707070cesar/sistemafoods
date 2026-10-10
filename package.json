@@ -11,6 +11,7 @@
     "preview": "vite preview",
     "clean": "rm -rf dist dist-electron",
     "lint": "tsc --noEmit",
+    "test:pix": "tsx scripts/check-pix.ts",
     "electron:dev": "electron electron/main.cjs",
     "electron:build": "vite build && electron-builder",
     "dist:win": "vite build && electron-builder --win nsis",
@@ -48,14 +49,16 @@
   "dependencies": {
     "@google/genai": "^2.4.0",
     "@tailwindcss/vite": "^4.3.3",
+    "@types/qrcode": "^1.5.6",
     "@vitejs/plugin-react": "^6.1.1",
+    "dotenv": "^17.2.3",
+    "express": "^4.21.2",
     "lucide-react": "^0.546.0",
+    "motion": "^12.23.24",
+    "qrcode": "^1.5.4",
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
-    "vite": "^8.3.0",
-    "express": "^4.21.2",
-    "dotenv": "^17.2.3",
-    "motion": "^12.23.24"
+    "vite": "^8.3.0"
   },
   "devDependencies": {
     "@types/express": "^4.17.21",

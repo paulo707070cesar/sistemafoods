@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import QRCode from 'qrcode';
 import { 
   ArrowLeft, 
   QrCode, 
@@ -13,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useFoodSystem } from '../../context/FoodSystemContext';
 import { PaymentMethod } from '../../types';
+import { buildPixPayload } from '../../utils/pix';
 
 export const CustomerPayment: React.FC = () => {
   const { 
@@ -21,6 +23,7 @@ export const CustomerPayment: React.FC = () => {
     digitalOrders, 
     setCustomerScreenStep, 
     processPayment, 
+    paymentSettings,
     addToast, 
     playFeedbackSound 
   } = useFoodSystem();
@@ -34,6 +37,7 @@ export const CustomerPayment: React.FC = () => {
 
   const [paymentMethod, setPaymentMethod] = useState<'pix' | 'cartao'>('pix');
   const [pixCopied, setPixCopied] = useState(false);
+  const [pixQrImage, setPixQrImage] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isPaid, setIsPaid] = useState(false);
 
@@ -43,9 +47,22 @@ export const CustomerPayment: React.FC = () => {
   const [cardExpiry, setCardExpiry] = useState('');
   const [cardCvv, setCardCvv] = useState('');
 
+  useEffect(() => {
+    const payload = buildPixPayload(paymentSettings.pix, { amount: total });
+    if (!payload) { setPixQrImage(null); return; }
+    QRCode.toDataURL(payload, { errorCorrectionLevel: 'M', margin: 2, width: 320, color: { dark: '#0f172a', light: '#ffffff' } })
+      .then(setPixQrImage)
+      .catch(() => setPixQrImage(null));
+  }, [paymentSettings.pix, total]);
+
   const handleCopyPix = () => {
-    const pixKey = `00020126580014BR.GOV.BCB.PIX0136sistema-food-mobile-mesa-${customerSelectedTable.replace(/\s+/g, '')}-${total.toFixed(2)}`;
-    navigator.clipboard?.writeText(pixKey);
+    const payload = buildPixPayload(paymentSettings.pix, { amount: total });
+    if (!payload) {
+      playFeedbackSound('alert');
+      addToast('warning', 'PIX indisponível', 'O restaurante ainda não configurou a chave PIX.');
+      return;
+    }
+    navigator.clipboard?.writeText(payload);
     setPixCopied(true);
     addToast('success', 'Chave PIX Copiada', 'Cole no app do seu banco para pagar.');
     setTimeout(() => setPixCopied(false), 3000);
@@ -191,34 +208,7 @@ export const CustomerPayment: React.FC = () => {
       {paymentMethod === 'pix' ? (
         <div className="bg-[#121929] border border-slate-800 rounded-3xl p-5 space-y-4 shadow-xl text-center">
           <div className="w-36 h-36 bg-white p-2.5 rounded-2xl mx-auto shadow-md flex items-center justify-center">
-            {/* Real SVG QR code representation */}
-            <svg viewBox="0 0 100 100" className="w-full h-full text-slate-900">
-              <rect x="5" y="5" width="26" height="26" fill="black" rx="2" />
-              <rect x="9" y="9" width="18" height="18" fill="white" rx="1" />
-              <rect x="13" y="13" width="10" height="10" fill="black" rx="1" />
-              <rect x="69" y="5" width="26" height="26" fill="black" rx="2" />
-              <rect x="73" y="9" width="18" height="18" fill="white" rx="1" />
-              <rect x="77" y="13" width="10" height="10" fill="black" rx="1" />
-              <rect x="5" y="69" width="26" height="26" fill="black" rx="2" />
-              <rect x="9" y="73" width="18" height="18" fill="white" rx="1" />
-              <rect x="13" y="77" width="10" height="10" fill="black" rx="1" />
-              <circle cx="50" cy="50" r="7" fill="#f97316" />
-            </svg>
-          </div>
-
-          <div>
-            <span className="text-xs font-semibold text-slate-300 block">
-              Copie o código abaixo e cole no seu banco:
-            </span>
-            <div className="mt-2 flex items-center gap-2">
-              <button
-                onClick={handleCopyPix}
-                className="w-full py-2.5 px-3 rounded-xl bg-slate-900 border border-slate-700 text-orange-400 font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-slate-800 transition-colors"
-              >
-                {pixCopied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-                <span>{pixCopied ? 'Chave Copiada com Sucesso!' : 'Copiar Código PIX'}</span>
-              </button>
-            </div>
+            {pixQrImage ? <img src={pixQrImage} alt="QR Code PIX" className="w-full h-full" /> : <div className="text-center text-xs text-slate-500">Configure o PIX para gerar o QR Code.</div>}
           </div>
 
           <div className="pt-2 border-t border-slate-800/80 text-[11px] text-slate-400 flex items-center justify-center gap-1.5">

@@ -651,6 +651,52 @@ export const InstrucoesScreen: React.FC = () => {
       ],
       offlineTip: 'A versão Desktop é ideal para o terminal do caixa e tela KDS da cozinha: ultra-estável e à prova de quedas de conexão.',
       quickActionLabel: 'Abrir PDV Desktop'
+    },
+    {
+      id: 'config_pagamentos',
+      screenId: 'config_pagamentos',
+      number: '11',
+      title: 'Pagamentos — Chave PIX e Mercado Pago',
+      subtitle: 'Configuração de recebimento por PIX e por cartão',
+      role: ['gerente'],
+      roleLabel: 'Gerência',
+      icon: <CreditCard className="w-5 h-5 text-sky-400" />,
+      summary: 'Central de recebimento do restaurante. Aqui a gerência cadastra a chave PIX usada no Copia e Cola e as credenciais do Mercado Pago para cobrança no cartão, além de definir acréscimos repassados ao cliente.',
+      steps: [
+        'Abra a aba "11. Pagamentos" no menu superior, disponível apenas para o perfil Gerência.',
+        'Na seção PIX, marque "Habilitar", escolha o tipo da chave (CPF, CNPJ, e-mail, telefone ou aleatória) e informe a chave.',
+        'Preencha o nome do recebedor (até 25 caracteres) e a cidade (até 15). São esses dados que aparecem no aplicativo do banco do cliente.',
+        'Confira a prévia do código Copia e Cola e clique em "Copiar teste de R$ 1,00" para validar no seu banco antes de usar no salão.',
+        'Na seção Mercado Pago, marque "Habilitar", escolha o ambiente (testes ou produção) e cole a Public Key e o Access Token obtidos no painel de desenvolvedores.',
+        'Defina as parcelas máximas e, se quiser repassar a taxa da maquininha, informe o percentual de acréscimo.',
+        'Clique em "Salvar". O botão só fica ativo quando há alterações pendentes.'
+      ],
+      features: [
+        { label: 'Código PIX válido', desc: 'Gera o BR Code no padrão do Banco Central, com CRC16 conferido, aceito por qualquer aplicativo de banco.' },
+        { label: 'Acréscimo configurável', desc: 'Permite repassar ao cliente um percentual no PIX e no cartão, ou absorver a taxa e manter o preço de vitrine.' },
+        { label: 'Credencial protegida', desc: 'O Access Token aparece mascarado e só é exibido quando você clica no ícone de olho.' },
+        { label: 'Validação antes de salvar', desc: 'Chave com formato errado, nome ou cidade fora do limite impedem o salvamento, evitando cobrança que o cliente não consegue pagar.' }
+      ],
+      faq: [
+        {
+          q: 'O cliente consegue pagar o PIX gerado aqui?',
+          a: 'Sim. Com a chave configurada, o sistema monta um Copia e Cola estático válido. O valor entra direto na conta vinculada à chave, sem intermediário.'
+        },
+        {
+          q: 'Por que o nome e a cidade precisam ser preenchidos?',
+          a: 'O padrão do Banco Central exige esses dois campos no código. Eles aparecem para o cliente no momento de confirmar o pagamento, funcionando como conferência de segurança.'
+        },
+        {
+          q: 'A cobrança no cartão já está funcionando?',
+          a: 'Ainda não. Esta tela guarda as credenciais, mas a criação da cobrança precisa ser feita pelo servidor do sistema. Enquanto o backend não estiver em operação, o cartão segue em modo demonstração.'
+        },
+        {
+          q: 'Onde ficam guardadas as credenciais?',
+          a: 'Nesta versão, apenas neste dispositivo. Quando o servidor estiver ativo, o Access Token deve ficar exclusivamente nele e nunca ser distribuído aos tablets do salão.'
+        }
+      ],
+      offlineTip: 'A chave PIX funciona sem internet: o código é gerado no próprio aparelho e o cliente paga pelo aplicativo do banco dele.',
+      quickActionLabel: 'Abrir Configurações de Pagamento'
     }
   ];
 

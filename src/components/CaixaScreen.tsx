@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useFoodSystem } from '../context/FoodSystemContext';
 import { PaymentMethod, Table, Comanda, Transaction } from '../types';
+import { buildPixPayload } from '../utils/pix';
 
 export const CaixaScreen: React.FC = () => {
   const {
@@ -28,6 +29,7 @@ export const CaixaScreen: React.FC = () => {
     setSelectedTableId,
     processPayment,
     openReceiptModal,
+    paymentSettings,
     addToast,
     playFeedbackSound
   } = useFoodSystem();
@@ -98,9 +100,15 @@ export const CaixaScreen: React.FC = () => {
   };
 
   const handleCopyPix = () => {
-    navigator.clipboard?.writeText('00020126580014BR.GOV.BCB.PIX0136sistema-food-restaurante-qr9923849520400005303986540' + totalFinal.toFixed(2));
+    const payload = buildPixPayload(paymentSettings.pix, { amount: totalFinal });
+    if (!payload) {
+      playFeedbackSound('alert');
+      addToast('warning', 'PIX não configurado', 'Cadastre a chave em Pagamentos, no menu superior.');
+      return;
+    }
+    navigator.clipboard?.writeText(payload);
     setPixCopied(true);
-    addToast('success', 'PIX Copiado', 'Chave Copia e Cola copiada para a área de transferência.');
+    addToast('success', 'PIX Copiado', `Código Copia e Cola de R$ ${totalFinal.toFixed(2)} gerado com a sua chave.`);
     setTimeout(() => setPixCopied(false), 3000);
   };
 

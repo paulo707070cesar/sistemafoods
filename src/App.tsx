@@ -10,6 +10,7 @@ import { FichasScreen } from './components/FichasScreen';
 import { DashboardScreen } from './components/DashboardScreen';
 import { NetworkConfigScreen } from './components/NetworkConfigScreen';
 import { SyncQueueScreen } from './components/SyncQueueScreen';
+import { ConfigPagamentosScreen } from './components/ConfigPagamentosScreen';
 import { InstrucoesScreen } from './components/InstrucoesScreen';
 import { CloudLoginScreen } from './components/Cloud/CloudLoginScreen';
 import { CloudRemoteDashboard } from './components/Cloud/CloudRemoteDashboard';
@@ -74,6 +75,7 @@ const MainAppContent: React.FC = () => {
           {activeScreen === 'dashboard' && <DashboardScreen />}
           {activeScreen === 'rede' && <NetworkConfigScreen />}
           {activeScreen === 'sync_queue' && <SyncQueueScreen />}
+          {activeScreen === 'config_pagamentos' && <ConfigPagamentosScreen />}
           {activeScreen === 'instrucoes' && <InstrucoesScreen />}
         </main>
 

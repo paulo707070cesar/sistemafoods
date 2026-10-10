@@ -19,7 +19,8 @@ import {
   InternetStatus,
   SyncMode,
   DeviceConnected,
-  SyncQueueItem
+  SyncQueueItem,
+  PaymentSettings, Restaurant
 } from '../types';
 import { 
   INITIAL_PRODUCTS, 
@@ -37,7 +38,7 @@ export const USER_ROLES_CONFIG: Record<UserRole, UserRoleConfig> = {
     label: 'Gerente / Admin',
     shortLabel: 'Gerente',
     description: 'Acesso completo a todas as rotas, relatórios e configurações',
-    allowedScreens: ['pdv', 'mesas', 'caixa', 'estoque', 'kds', 'fichas', 'dashboard', 'rede', 'sync_queue', 'instrucoes'],
+    allowedScreens: ['pdv', 'mesas', 'caixa', 'estoque', 'kds', 'fichas', 'dashboard', 'rede', 'sync_queue', 'config_pagamentos', 'instrucoes'],
     color: 'from-amber-500 to-orange-600'
   },
   garcom: {
@@ -87,6 +88,11 @@ interface FoodSystemContextType {
   // Dual Interface View: Tablet vs Mobile Customer
   interfaceMode: AppInterfaceMode;
   setInterfaceMode: (mode: AppInterfaceMode) => void;
+
+  restaurants: Restaurant[];
+  activeRestaurant: Restaurant;
+  createRestaurant: (name: string, city?: string) => void;
+  selectRestaurant: (restaurantId: string) => void;
 
   // Selected Target (Table or Comanda)
   activeMode: 'mesas' | 'comandas';
@@ -139,6 +145,10 @@ interface FoodSystemContextType {
   removeStock: (productId: string, qty: number, reason: string) => void;
   addNewProduct: (productData: Omit<Product, 'id'>) => void;
   updateProductPrice: (productId: string, price: number) => void;
+
+  // Configuração de recebimento (PIX e Mercado Pago)
+  paymentSettings: PaymentSettings;
+  updatePaymentSettings: (partial: Partial<PaymentSettings>) => void;
 
   // Digital Menu & Customer Mobile Flow
   customerScreenStep: CustomerScreenStep;
@@ -232,6 +242,51 @@ const readStored = <T,>(key: string, fallback: T): T => {
   }
 };
 
+/** Configuração de pagamento padrão, usada antes de o restaurante configurar. */
+export const DEFAULT_PAYMENT_SETTINGS: PaymentSettings = {
+  pix: {
+    enabled: false,
+    keyType: 'aleatoria',
+    key: '',
+    merchantName: 'SISTEMA FOOD',
+    merchantCity: 'SAO PAULO',
+    surchargePercent: 0
+  },
+  mercadoPago: {
+    enabled: false,
+    environment: 'sandbox',
+    publicKey: '',
+    accessToken: '',
+    maxInstallments: 12,
+    surchargePercent: 0
+  }
+};
+
+/** Completa configurações antigas com os campos novos, evitando campos indefinidos. */
+function normalizePaymentSettings(raw: unknown): PaymentSettings {
+  const stored = (raw && typeof raw === 'object' ? raw : {}) as Partial<PaymentSettings>;
+  const pix = { ...DEFAULT_PAYMENT_SETTINGS.pix, ...(stored.pix ?? {}) };
+  const mercadoPago = { ...DEFAULT_PAYMENT_SETTINGS.mercadoPago, ...(stored.mercadoPago ?? {}) };
+
+  const limite = (valor: unknown, minimo: number, maximo: number, padrao: number) => {
+    const numero = Number(valor);
+    if (!Number.isFinite(numero)) return padrao;
+    return Math.min(Math.max(numero, minimo), maximo);
+  };
+
+  return {
+    pix: { ...pix, surchargePercent: limite(pix.surchargePercent, 0, 100, 0) },
+    mercadoPago: {
+      ...mercadoPago,
+      maxInstallments: limite(mercadoPago.maxInstallments, 1, 24, 12),
+      surchargePercent: limite(mercadoPago.surchargePercent, 0, 100, 0)
+    },
+    updatedAt: stored.updatedAt
+  };
+}
+
+const DEFAULT_RESTAURANTS: Restaurant[] = [{ id: 'rest-demo', name: 'Sistema Food - Matriz', city: 'São Paulo', createdAt: new Date().toISOString(), active: true }];
+
 export const FoodSystemProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // User Role & Screen Access Control
   const [userRole, setUserRoleState] = useState<UserRole>(() => {
@@ -270,6 +325,28 @@ export const FoodSystemProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [tabletFrameMode, setTabletFrameMode] = useState<boolean>(false);
   const [interfaceMode, setInterfaceMode] = useState<AppInterfaceMode>('tablet');
   const [activeMode, setActiveMode] = useState<'mesas' | 'comandas'>('mesas');
+
+  const [restaurants, setRestaurants] = useState<Restaurant[]>(() => readStored('sistema_food_restaurants', DEFAULT_RESTAURANTS));
+  const [activeRestaurantId, setActiveRestaurantId] = useState<string>(() => localStorage.getItem('sistema_food_active_restaurant') || 'rest-demo');
+  const activeRestaurant = restaurants.find(item => item.id === activeRestaurantId) || restaurants[0];
+
+  useEffect(() => { localStorage.setItem('sistema_food_restaurants', JSON.stringify(restaurants)); }, [restaurants]);
+  useEffect(() => { localStorage.setItem('sistema_food_active_restaurant', activeRestaurant.id); }, [activeRestaurant.id]);
+
+  const selectRestaurant = (restaurantId: string) => {
+    if (!restaurants.some(item => item.id === restaurantId)) return;
+    setActiveRestaurantId(restaurantId);
+    setRestaurants(prev => prev.map(item => ({ ...item, active: item.id === restaurantId })));
+    addToast('success', 'Restaurante selecionado', restaurants.find(item => item.id === restaurantId)?.name || 'Conta alterada');
+  };
+
+  const createRestaurant = (name: string, city = '') => {
+    const trimmedName = name.trim();
+    if (!trimmedName) { addToast('warning', 'Nome obrigatório', 'Informe o nome do restaurante.'); return; }
+    const restaurant: Restaurant = { id: `rest-${Date.now()}`, name: trimmedName, city: city.trim(), createdAt: new Date().toISOString(), active: true };
+    setRestaurants(prev => [...prev.map(item => ({ ...item, active: false })), restaurant]);
+    addToast('success', 'Restaurante criado', `${trimmedName} está ativo.`);
+  };
 
   // Network Infrastructure State
   const [localServerStatus, setLocalServerStatus] = useState<LocalServerStatus>('online');
@@ -334,6 +411,11 @@ export const FoodSystemProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   const [stockMovements, setStockMovements] = useState<StockMovement[]>([]);
 
+  // Configuração de recebimento (PIX e Mercado Pago)
+  const [paymentSettings, setPaymentSettings] = useState<PaymentSettings>(() =>
+    normalizePaymentSettings(readStored('sistema_food_payment_settings', DEFAULT_PAYMENT_SETTINGS))
+  );
+
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [receiptModalData, setReceiptModalData] = useState<{
     isOpen: boolean;
@@ -361,6 +443,10 @@ export const FoodSystemProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   useEffect(() => {
     localStorage.setItem('sistema_food_digital_orders', JSON.stringify(digitalOrders));
   }, [digitalOrders]);
+
+  useEffect(() => {
+    localStorage.setItem('sistema_food_payment_settings', JSON.stringify(paymentSettings));
+  }, [paymentSettings]);
 
   // Audio feedback synthesis using Web Audio API
   const playFeedbackSound = (type: 'click' | 'success' | 'alert' | 'bell' = 'click') => {
@@ -1163,6 +1249,22 @@ export const FoodSystemProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     addToast('success', 'Preço Atualizado', `Novo preço: R$ ${safePrice.toFixed(2)}.`);
   };
 
+  /**
+   * Salva a configuração de recebimento.
+   * Aceita atualização parcial para o PIX e para o Mercado Pago separadamente.
+   */
+  const updatePaymentSettings = (partial: Partial<PaymentSettings>) => {
+    playFeedbackSound('success');
+    setPaymentSettings(prev => normalizePaymentSettings({
+      ...prev,
+      ...partial,
+      pix: { ...prev.pix, ...(partial.pix ?? {}) },
+      mercadoPago: { ...prev.mercadoPago, ...(partial.mercadoPago ?? {}) },
+      updatedAt: new Date().toISOString()
+    }));
+    addToast('success', 'Configuração Salva', 'Os dados de recebimento foram atualizados.');
+  };
+
   const openReceiptModal = (transaction?: Transaction, tableSummary?: any) => {
     playFeedbackSound('click');
     setReceiptModalData({
@@ -1284,6 +1386,10 @@ export const FoodSystemProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         interfaceMode,
         setInterfaceMode,
         activeMode,
+        restaurants,
+        activeRestaurant,
+        createRestaurant,
+        selectRestaurant,
         setActiveMode,
         selectedTableId,
         setSelectedTableId,
@@ -1312,6 +1418,8 @@ export const FoodSystemProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         removeStock,
         addNewProduct,
         updateProductPrice,
+        paymentSettings,
+        updatePaymentSettings,
         customerScreenStep,
         setCustomerScreenStep,
         customerSelectedTable,
