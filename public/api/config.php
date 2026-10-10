@@ -17,8 +17,19 @@ session_set_cookie_params([
 ]);
 session_start();
 
-$localConfigPath = __DIR__ . '/config.local.php';
-if (!is_file($localConfigPath)) {
+$localConfigPaths = [
+    __DIR__ . '/config.local.php',
+    dirname(__DIR__, 2) . '/config/config.local.php',
+    dirname(__DIR__, 3) . '/config/config.local.php'
+];
+$localConfigPath = null;
+foreach ($localConfigPaths as $candidatePath) {
+    if (is_file($candidatePath)) {
+        $localConfigPath = $candidatePath;
+        break;
+    }
+}
+if (!$localConfigPath) {
     respondJson(['status' => 'error', 'message' => 'Configuração do banco não encontrada.'], 500);
 }
 
