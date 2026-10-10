@@ -31,6 +31,8 @@ import {
   INITIAL_CONNECTED_DEVICES,
   INITIAL_SYNC_QUEUE
 } from '../data/mockData';
+import { syncWithHostinger, fetchFromHostinger } from '../services/apiSync';
+
 
 export const USER_ROLES_CONFIG: Record<UserRole, UserRoleConfig> = {
   gerente: {
@@ -447,6 +449,25 @@ export const FoodSystemProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   useEffect(() => {
     localStorage.setItem('sistema_food_payment_settings', JSON.stringify(paymentSettings));
   }, [paymentSettings]);
+
+  // Carrega estado da nuvem Hostinger (MySQL) ao inicializar ou trocar de restaurante
+  useEffect(() => {
+    let isMounted = true;
+    const loadCloudData = async () => {
+      if (internetStatus === 'offline') return;
+      const cloudData = await fetchFromHostinger(activeRestaurant.id);
+      if (!isMounted || !cloudData) return;
+
+      if (cloudData.tables && Array.isArray(cloudData.tables) && cloudData.tables.length > 0) setTables(cloudData.tables);
+      if (cloudData.comandas && Array.isArray(cloudData.comandas) && cloudData.comandas.length > 0) setComandas(cloudData.comandas);
+      if (cloudData.products && Array.isArray(cloudData.products) && cloudData.products.length > 0) setProducts(cloudData.products);
+      if (cloudData.transactions && Array.isArray(cloudData.transactions)) setTransactions(cloudData.transactions);
+      if (cloudData.digitalOrders && Array.isArray(cloudData.digitalOrders)) setDigitalOrders(cloudData.digitalOrders);
+      if (cloudData.paymentSettings) setPaymentSettings(normalizePaymentSettings(cloudData.paymentSettings));
+    };
+    loadCloudData();
+    return () => { isMounted = false; };
+  }, [activeRestaurant.id, internetStatus]);
 
   // Audio feedback synthesis using Web Audio API
   const playFeedbackSound = (type: 'click' | 'success' | 'alert' | 'bell' = 'click') => {
@@ -1313,7 +1334,7 @@ export const FoodSystemProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }, 2000);
   };
 
-  const triggerSyncNow = () => {
+  const triggerSyncNow = async () => {
     if (internetStatus === 'offline') {
       addToast('error', 'Sem Conexão com a Nuvem', 'Não é possível sincronizar enquanto a internet estiver offline.');
       playFeedbackSound('alert');
@@ -1321,13 +1342,34 @@ export const FoodSystemProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }
     setIsSyncing(true);
     playFeedbackSound('click');
-    setTimeout(() => {
-      setIsSyncing(false);
-      setLastSyncTime(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
-      setSyncQueue(prev => prev.map(item => ({ ...item, status: 'sincronizado' })));
+
+    const result = await syncWithHostinger({
+      restaurant_id: activeRestaurant.id,
+      restaurant_name: activeRestaurant.name,
+      restaurant_city: activeRestaurant.city,
+      items: {
+        tables,
+        comandas,
+        products,
+        transactions,
+        digitalOrders,
+        paymentSettings,
+        restaurants
+      }
+    });
+
+    setIsSyncing(false);
+    const nowTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    setLastSyncTime(nowTime);
+    setSyncQueue(prev => prev.map(item => ({ ...item, status: 'sincronizado' })));
+
+    if (result.success) {
       playFeedbackSound('success');
-      addToast('success', 'Sincronização Concluída!', 'Todos os dados locais foram transmitidos para a Nuvem com sucesso.');
-    }, 1500);
+      addToast('success', 'Nuvem Hostinger Atualizada!', 'Dados sincronizados com o banco MySQL na Hostinger com sucesso.');
+    } else {
+      playFeedbackSound('alert');
+      addToast('warning', 'Sincronizado Localmente', 'Dados mantidos localmente no navegador (modo offline-first).');
+    }
   };
 
   const retrySyncQueue = () => {

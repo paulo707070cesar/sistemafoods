@@ -1,24 +1,43 @@
 # ====================================================================
 # SISTEMA FOOD — BAR & RESTAURANTE
 # Configuração de Servidor Apache / LiteSpeed (Hostinger Web Hosting)
-# Suporte a SPA (Single Page Application), Gzip, Cache e Segurança
+# Domínio Oficial: https://sistemafoods.xll.com.br/
 # ====================================================================
 
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteBase /
 
-  # Forçar HTTPS (recomendado para Hostinger com SSL ativado)
+  # 1. Redirecionar domínio provisório da Hostinger para o domínio oficial
+  RewriteCond %{HTTP_HOST} ^sandybrown-crow-226683\.hostingersite\.com$ [NC]
+  RewriteRule ^(.*)$ https://sistemafoods.xll.com.br/$1 [R=301,L]
+
+  # 2. Forçar HTTPS em todas as requisições
   RewriteCond %{HTTPS} off
   RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 
-  # Se o arquivo ou pasta física existir no servidor, carrega diretamente
+  # 3. Não reescrever chamadas para a API (pasta /api)
+  RewriteRule ^api/ - [L]
+
+  # 4. Se o arquivo ou pasta física existir no servidor, carrega diretamente
   RewriteCond %{REQUEST_FILENAME} -f [OR]
   RewriteCond %{REQUEST_FILENAME} -d
   RewriteRule ^ - [L]
 
-  # Caso contrário, redireciona qualquer requisição interna para o index.html (SPA)
+  # 5. SPA Fallback: redireciona todas as rotas internas para o index.html
   RewriteRule ^ index.html [L]
+</IfModule>
+
+# ----------------------------------------------------------------------
+# Configuração de CORS (Cross-Origin Resource Sharing)
+# ----------------------------------------------------------------------
+<IfModule mod_headers.c>
+  Header always set Access-Control-Allow-Origin "*"
+  Header always set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+  Header always set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
+  Header set X-Content-Type-Options "nosniff"
+  Header set X-XSS-Protection "1; mode=block"
+  Header always set Referrer-Policy "no-referrer-when-downgrade"
 </IfModule>
 
 # ----------------------------------------------------------------------
@@ -46,8 +65,9 @@
   ExpiresActive On
   ExpiresDefault "access plus 1 month"
 
-  # HTML sem cache para que os clientes sempre peguem a versão mais nova do cardápio
+  # HTML e chamadas PHP sem cache para atualização imediata
   ExpiresByType text/html "access plus 0 seconds"
+  ExpiresByType application/json "access plus 0 seconds"
 
   # CSS e Javascript compilados com hash
   ExpiresByType text/css "access plus 1 year"
@@ -65,15 +85,6 @@
   ExpiresByType font/ttf "access plus 1 year"
   ExpiresByType font/woff "access plus 1 year"
   ExpiresByType font/woff2 "access plus 1 year"
-</IfModule>
-
-# ----------------------------------------------------------------------
-# Cabeçalhos de Segurança HTTP
-# ----------------------------------------------------------------------
-<IfModule mod_headers.c>
-  Header set X-Content-Type-Options "nosniff"
-  Header set X-XSS-Protection "1; mode=block"
-  Header always set Referrer-Policy "no-referrer-when-downgrade"
 </IfModule>
 
 # Desativar listagem de diretórios
