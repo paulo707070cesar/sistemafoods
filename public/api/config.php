@@ -17,11 +17,10 @@ session_set_cookie_params([
 ]);
 session_start();
 
-$localConfigPaths = [
-    __DIR__ . '/config.local.php',
-    dirname(__DIR__, 2) . '/config/config.local.php',
-    dirname(__DIR__, 3) . '/config/config.local.php'
-];
+$localConfigPaths = [__DIR__ . '/config.local.php'];
+for ($level = 1; $level <= 6; $level++) {
+    $localConfigPaths[] = dirname(__DIR__, $level) . '/config/config.local.php';
+}
 $localConfigPath = null;
 foreach ($localConfigPaths as $candidatePath) {
     if (is_file($candidatePath)) {
